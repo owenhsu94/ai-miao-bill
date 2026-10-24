@@ -2,7 +2,8 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 修正 1：限制 viewport 防止 iOS 自動放大頁面 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AI喵喵系統</title>
 
   <!-- iOS App 圖示與 PWA 設定 -->
@@ -21,6 +22,7 @@
       color: #0f172a;
       user-select: none;
       -webkit-user-select: none;
+      overflow-x: hidden; /* 確保防止水平溢出 */
     }
 
     .glass-card {
@@ -31,11 +33,12 @@
       border: none !important;
     }
 
-    /* 輸入框樣式：灰色外框 */
+    /* 修正 2：強制輸入框字級設為 16px (font-size: 16px)，防止 iOS Safari 自動 Zoom In */
     .glass-input {
       background: rgba(248, 250, 252, 0.9);
       color: #0f172a;
       border: 1px solid #cbd5e1 !important;
+      font-size: 16px !important;
     }
     .glass-input:focus {
       outline: none;
@@ -77,6 +80,7 @@
       overflow: hidden;
       border-radius: 1.25rem;
       background-color: #cbd5e1;
+      width: 100%;
     }
 
     .swipe-content {
@@ -198,17 +202,17 @@
         
         <div>
           <label class="block text-xs text-slate-600 mb-1">帳單項目</label>
-          <input type="text" id="bank-name" required placeholder="例如: 玉山信用卡、電信費" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm">
+          <input type="text" id="bank-name" required placeholder="例如: 玉山信用卡、電信費" class="w-full glass-input rounded-xl px-4 py-2.5">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs text-slate-600 mb-1">每期結帳日</label>
-            <input type="number" id="statement-day" min="1" max="31" inputmode="numeric" required placeholder="1 - 31" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm">
+            <input type="number" id="statement-day" min="1" max="31" inputmode="numeric" required placeholder="1 - 31" class="w-full glass-input rounded-xl px-4 py-2.5">
           </div>
           <div>
             <label class="block text-xs text-slate-600 mb-1">每期繳款截止日</label>
-            <input type="number" id="due-day" min="1" max="31" inputmode="numeric" required placeholder="1 - 31" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm">
+            <input type="number" id="due-day" min="1" max="31" inputmode="numeric" required placeholder="1 - 31" class="w-full glass-input rounded-xl px-4 py-2.5">
           </div>
         </div>
 
@@ -479,8 +483,11 @@
       }
     }
 
+    /* 修正 3：關閉 Modal 時讓輸入框強制 Focus 釋放並重置水平滾動視角 */
     function closeModal() {
+      document.activeElement.blur();
       document.getElementById('modal').classList.add('hidden');
+      window.scrollTo(0, 0);
     }
 
     function handleFormSubmit(e) {
