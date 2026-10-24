@@ -301,14 +301,6 @@
       document.getElementById('stat-paid').innerText = paidCount;
       document.getElementById('stat-overdue').innerText = overdueCount;
 
-      if (currentFilter === 'unpaid') {
-        data = data.filter(c => getButtonConfig(c).type === 'unpaid');
-      } else if (currentFilter === 'paid') {
-        data = data.filter(c => getButtonConfig(c).type === 'paid');
-      } else if (currentFilter === 'overdue') {
-        data = data.filter(c => getButtonConfig(c).type === 'overdue');
-      }
-
       if (itemsData.length === 0) {
         cardList.innerHTML = `
           <div class="glass-card rounded-2xl p-6 text-center text-slate-700 text-sm font-medium leading-relaxed shadow-sm">
@@ -349,16 +341,16 @@
                  ontouchstart="startDrag(event, '${item.id}')">
               
               <div class="flex items-center justify-between gap-3">
-                <!-- 左側：項目名稱與日期 (可自動截斷，不擠壓右側) -->
+                <!-- 左側：項目名稱與日期 (自動換行 break-words，絕不折疊文字或與右側擠壓) -->
                 <div class="space-y-1 min-w-0 flex-1">
-                  <h3 class="text-base font-bold text-slate-800 truncate">${item.bankName}</h3>
-                  <div class="text-xs text-slate-500 space-y-0.5 truncate">
+                  <h3 class="text-base font-bold text-slate-800 break-words leading-snug">${item.bankName}</h3>
+                  <div class="text-xs text-slate-500 space-y-0.5">
                     <div>結帳日：<span class="font-semibold text-slate-700">每月 ${item.statementDay} 日</span></div>
                     <div>繳款截止日：<span class="font-semibold text-slate-700">${dueText}</span></div>
                   </div>
                 </div>
 
-                <!-- 右側：狀態按鈕與完成日期 (固定寬度 w-[110px]，防止換行破版) -->
+                <!-- 右側：狀態按鈕與完成日期 (固定寬度 w-[110px]，確保尺寸獨立固化) -->
                 <div class="w-[110px] flex-shrink-0 flex flex-col items-end justify-center space-y-1">
                   <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="w-[90px] text-center py-1.5 rounded-xl text-xs transition-all ${btn.class}">
                     ${btn.text}
