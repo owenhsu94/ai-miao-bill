@@ -232,9 +232,11 @@
     let itemsData = JSON.parse(localStorage.getItem('cards_account_v24')) || [];
 
     let activeSwipedElem = null;
-    let isDragging = false; // 全域獨佔鎖
+    let isDragging = false;
     let currentDragId = null;
     let startX = 0;
+    let startY = 0;
+    let isDirectionLocked = false; // 方向鎖定狀態
 
     function saveCurrentData() {
       localStorage.setItem('cards_account_v24', JSON.stringify(itemsData));
@@ -397,16 +399,17 @@
     }
 
     function startDrag(e, id) {
-      // 1. 防護：如果已經有一張卡片正在拖曳，或者為多指觸控，禁止啟動第二次拖曳
       if (isDragging) return;
       if (e.touches && e.touches.length > 1) return;
 
-      // 2. 關閉所有其他已展開的卡片
       closeAllSwipes(id);
 
       isDragging = true;
       currentDragId = id;
+      isDirectionLocked = false; // 初始化方向尚未鎖定
+
       startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+      startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
       
       const content = document.getElementById(`content-${id}`);
       if (content) content.style.transition = 'none';
@@ -422,17 +425,48 @@
 
     function onDrag(e, id) {
       if (!isDragging || currentDragId !== id) return;
-      const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-      const deltaX = currentX - startX;
-      const content = document.getElementById(`content-${id}`);
 
-      if (content && deltaX < 0 && deltaX > -180) {
-        content.style.transform = `translateX(${deltaX}px)`;
+      const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+      const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+      
+      const deltaX = currentX - startX;
+      const deltaY = currentY - startY;
+
+      // 尚未決定方向時，檢查移動軌跡
+      if (!isDirectionLocked) {
+        // 如果垂直移動大於水平移動，判定為上下捲動螢幕，立刻中止卡片滑動
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          isDragging = false;
+          currentDragId = null;
+          const content = document.getElementById(`content-${id}`);
+          if (content) {
+            content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
+            content.style.transform = 'translateX(0px)';
+          }
+          return;
+        }
+        // 如果水平移動大於垂直移動，鎖定為卡片左右滑動
+        if (Math.abs(deltaX) > 5) {
+          isDirectionLocked = true;
+        }
+      }
+
+      if (isDirectionLocked) {
+        const content = document.getElementById(`content-${id}`);
+        if (content && deltaX < 0 && deltaX > -180) {
+          content.style.transform = `translateX(${deltaX}px)`;
+        }
       }
     }
 
     function stopDrag(e, id, moveHandler, endHandler) {
-      if (!isDragging || currentDragId !== id) return;
+      if (!isDragging || currentDragId !== id) {
+        window.removeEventListener('mousemove', moveHandler);
+        window.removeEventListener('touchmove', moveHandler);
+        window.removeEventListener('mouseup', endHandler);
+        window.removeEventListener('touchend', endHandler);
+        return;
+      }
       
       window.removeEventListener('mousemove', moveHandler);
       window.removeEventListener('touchmove', moveHandler);
@@ -442,6 +476,7 @@
       const content = document.getElementById(`content-${id}`);
       isDragging = false;
       currentDragId = null;
+      isDirectionLocked = false;
 
       if (!content) return;
 
@@ -459,7 +494,6 @@
       }
     }
 
-    // 強制重置所有卡片
     function closeAllSwipes(exceptId = null) {
       const allContents = document.querySelectorAll('.swipe-content');
       allContents.forEach(content => {
@@ -472,7 +506,6 @@
       if (!exceptId) activeSwipedElem = null;
     }
 
-    // 點擊空白處關閉卡片
     window.addEventListener('click', (e) => {
       const container = e.target.closest('.swipe-container');
       if (!container) {
