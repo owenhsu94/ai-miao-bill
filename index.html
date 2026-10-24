@@ -236,7 +236,7 @@
     let currentDragId = null;
     let startX = 0;
     let startY = 0;
-    let isDirectionLocked = false; // 方向鎖定狀態
+    let isDirectionLocked = false;
 
     function saveCurrentData() {
       localStorage.setItem('cards_account_v24', JSON.stringify(itemsData));
@@ -336,7 +336,7 @@
         const btn = getButtonConfig(item);
         const dueText = item.dueDay <= item.statementDay ? `次月${item.dueDay}日` : `每月 ${item.dueDay} 日`;
         const isPaidStatus = btn.type === 'paid';
-        const paidDateText = (isPaidStatus && item.paidDate) ? `已於 ${item.paidDate} 完成繳費` : '';
+        const paidDateText = (isPaidStatus && item.paidDate) ? `已於 ${item.paidDate} 完成` : '';
 
         return `
           <div class="swipe-container shadow-sm" id="container-${item.id}">
@@ -348,20 +348,22 @@
                  onmousedown="startDrag(event, '${item.id}')"
                  ontouchstart="startDrag(event, '${item.id}')">
               
-              <div class="flex items-start justify-between">
-                <div class="space-y-1">
-                  <h3 class="text-base font-bold text-slate-800">${item.bankName}</h3>
-                  <div class="text-xs text-slate-500 space-y-0.5">
+              <div class="flex items-center justify-between gap-3">
+                <!-- 左側：項目名稱與日期 (可自動截斷，不擠壓右側) -->
+                <div class="space-y-1 min-w-0 flex-1">
+                  <h3 class="text-base font-bold text-slate-800 truncate">${item.bankName}</h3>
+                  <div class="text-xs text-slate-500 space-y-0.5 truncate">
                     <div>結帳日：<span class="font-semibold text-slate-700">每月 ${item.statementDay} 日</span></div>
                     <div>繳款截止日：<span class="font-semibold text-slate-700">${dueText}</span></div>
                   </div>
                 </div>
 
-                <div class="flex flex-col items-end space-y-1">
-                  <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="px-3 py-1.5 rounded-xl text-xs transition-all ${btn.class}">
+                <!-- 右側：狀態按鈕與完成日期 (固定寬度 w-[110px]，防止換行破版) -->
+                <div class="w-[110px] flex-shrink-0 flex flex-col items-end justify-center space-y-1">
+                  <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="w-[90px] text-center py-1.5 rounded-xl text-xs transition-all ${btn.class}">
                     ${btn.text}
                   </button>
-                  ${paidDateText ? `<span class="text-[11px] text-emerald-600 font-medium">${paidDateText}</span>` : ''}
+                  ${paidDateText ? `<span class="text-[10px] text-emerald-600 font-medium text-right w-full block whitespace-nowrap">${paidDateText}</span>` : ''}
                 </div>
               </div>
 
@@ -406,7 +408,7 @@
 
       isDragging = true;
       currentDragId = id;
-      isDirectionLocked = false; // 初始化方向尚未鎖定
+      isDirectionLocked = false;
 
       startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
       startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
@@ -432,9 +434,7 @@
       const deltaX = currentX - startX;
       const deltaY = currentY - startY;
 
-      // 尚未決定方向時，檢查移動軌跡
       if (!isDirectionLocked) {
-        // 如果垂直移動大於水平移動，判定為上下捲動螢幕，立刻中止卡片滑動
         if (Math.abs(deltaY) > Math.abs(deltaX)) {
           isDragging = false;
           currentDragId = null;
@@ -445,7 +445,6 @@
           }
           return;
         }
-        // 如果水平移動大於垂直移動，鎖定為卡片左右滑動
         if (Math.abs(deltaX) > 5) {
           isDirectionLocked = true;
         }
