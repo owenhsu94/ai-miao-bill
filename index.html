@@ -301,7 +301,6 @@
       document.getElementById('stat-paid').innerText = paidCount;
       document.getElementById('stat-overdue').innerText = overdueCount;
 
-      // 關鍵修復：將過濾後的陣列結果賦值回 data
       if (currentFilter === 'unpaid') {
         data = data.filter(c => getButtonConfig(c).type === 'unpaid');
       } else if (currentFilter === 'paid') {
@@ -359,12 +358,16 @@
                   </div>
                 </div>
 
-                <!-- 右側：狀態按鈕與完成日期 -->
+                <!-- 右側：狀態按鈕與完成日期 (內部元件全部採用 items-center 與 text-center 嚴格中線對齊) -->
                 <div class="w-[110px] flex-shrink-0 flex flex-col items-center justify-center space-y-1">
-                  <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="w-[90px] text-center py-1.5 rounded-xl text-xs transition-all ${btn.class}">
-                    ${btn.text}
-                  </button>
-                  ${paidDateText ? `<span class="text-[10px] text-emerald-600 font-medium text-center w-full block whitespace-nowrap">${paidDateText}</span>` : ''}
+                  <div class="w-[90px] flex justify-center">
+                    <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="w-full text-center py-1.5 rounded-xl text-xs transition-all ${btn.class}">
+                      ${btn.text}
+                    </button>
+                  </div>
+                  <div class="w-full flex justify-center">
+                    ${paidDateText ? `<span class="text-[10px] text-emerald-600 font-medium text-center whitespace-nowrap">${paidDateText}</span>` : ''}
+                  </div>
                 </div>
               </div>
 
@@ -527,79 +530,4 @@
       } else {
         document.getElementById('modal-title').innerText = '新增帳單';
         document.getElementById('card-form').reset();
-        document.getElementById('card-id').value = '';
-      }
-    }
-
-    function closeModal() {
-      if (document.activeElement) document.activeElement.blur();
-      document.getElementById('modal').classList.add('hidden');
-      window.scrollTo(0, 0);
-    }
-
-    function handleFormSubmit(e) {
-      e.preventDefault();
-      const id = document.getElementById('card-id').value;
-      const bankName = document.getElementById('bank-name').value;
-      const statementDay = parseInt(document.getElementById('statement-day').value);
-      const dueDay = parseInt(document.getElementById('due-day').value);
-
-      if (id) {
-        const index = itemsData.findIndex(c => c.id === id);
-        itemsData[index] = { ...itemsData[index], bankName, statementDay, dueDay, isForceUnbilled: false };
-      } else {
-        itemsData.push({ id: Date.now().toString(), bankName, statementDay, dueDay, isPaid: false, isForceUnbilled: false });
-      }
-
-      saveCurrentData();
-      closeModal();
-    }
-
-    function editCard(id) {
-      openModal(id);
-    }
-
-    function deleteCard(id) {
-      if (confirm('確定要刪除這筆帳單資料嗎？')) {
-        itemsData = itemsData.filter(c => c.id !== id);
-        saveCurrentData();
-      }
-    }
-
-    function initNotificationChecker() {
-      if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
-      }
-
-      setInterval(() => {
-        const nowTime = new Date();
-        const currentHour = nowTime.getHours();
-        const currentMinute = nowTime.getMinutes();
-
-        if (currentHour === 20 && currentMinute === 0) {
-          checkAndSendNotification();
-        }
-      }, 60000);
-    }
-
-    function checkAndSendNotification() {
-      const unpaidCount = itemsData.filter(c => getButtonConfig(c).type === 'unpaid').length;
-      const overdueCount = itemsData.filter(c => getButtonConfig(c).type === 'overdue').length;
-
-      if (unpaidCount > 0 || overdueCount > 0) {
-        const message = `敬告貴賓，您尚有${unpaidCount}筆待繳費帳單，${overdueCount}筆已逾期帳單，讚讚唷`;
-        
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("AI喵喵系統 - 帳單提醒", {
-            body: message,
-            icon: "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/egg.svg"
-          });
-        }
-      }
-    }
-
-    render();
-    initNotificationChecker();
-  </script>
-</body>
-</html>
+        document.getElementById('card-id
