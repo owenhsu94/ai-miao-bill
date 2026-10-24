@@ -301,6 +301,15 @@
       document.getElementById('stat-paid').innerText = paidCount;
       document.getElementById('stat-overdue').innerText = overdueCount;
 
+      // 關鍵修復：將過濾後的陣列結果賦值回 data
+      if (currentFilter === 'unpaid') {
+        data = data.filter(c => getButtonConfig(c).type === 'unpaid');
+      } else if (currentFilter === 'paid') {
+        data = data.filter(c => getButtonConfig(c).type === 'paid');
+      } else if (currentFilter === 'overdue') {
+        data = data.filter(c => getButtonConfig(c).type === 'overdue');
+      }
+
       if (itemsData.length === 0) {
         cardList.innerHTML = `
           <div class="glass-card rounded-2xl p-6 text-center text-slate-700 text-sm font-medium leading-relaxed shadow-sm">
@@ -341,7 +350,7 @@
                  ontouchstart="startDrag(event, '${item.id}')">
               
               <div class="flex items-center justify-between gap-3">
-                <!-- 左側：項目名稱與日期 (自動換行 break-words，絕不折疊文字或與右側擠壓) -->
+                <!-- 左側：項目名稱與日期 -->
                 <div class="space-y-1 min-w-0 flex-1">
                   <h3 class="text-base font-bold text-slate-800 break-words leading-snug">${item.bankName}</h3>
                   <div class="text-xs text-slate-500 space-y-0.5">
@@ -350,12 +359,12 @@
                   </div>
                 </div>
 
-                <!-- 右側：狀態按鈕與完成日期 (固定寬度 w-[110px]，確保尺寸獨立固化) -->
-                <div class="w-[110px] flex-shrink-0 flex flex-col items-end justify-center space-y-1">
+                <!-- 右側：狀態按鈕與完成日期 -->
+                <div class="w-[110px] flex-shrink-0 flex flex-col items-center justify-center space-y-1">
                   <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="w-[90px] text-center py-1.5 rounded-xl text-xs transition-all ${btn.class}">
                     ${btn.text}
                   </button>
-                  ${paidDateText ? `<span class="text-[10px] text-emerald-600 font-medium text-right w-full block whitespace-nowrap">${paidDateText}</span>` : ''}
+                  ${paidDateText ? `<span class="text-[10px] text-emerald-600 font-medium text-center w-full block whitespace-nowrap">${paidDateText}</span>` : ''}
                 </div>
               </div>
 
