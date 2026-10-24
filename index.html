@@ -15,7 +15,7 @@
       user-select: none;
       -webkit-user-select: none;
     }
-
+ 
     .glass-card {
       background: rgba(255, 255, 255, 0.85);
       backdrop-filter: blur(20px);
@@ -23,7 +23,7 @@
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
       border: none !important;
     }
-
+ 
     .glass-input {
       background: rgba(248, 250, 252, 0.9);
       color: #0f172a;
@@ -34,8 +34,8 @@
       background: #ffffff;
       box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4);
     }
-
-    /* 新增帳單按鈕調整為透明玻璃樣式 */
+ 
+    /* 新增帳單按鈕 - 透明玻璃樣式 */
     .glass-button-primary {
       background: rgba(255, 255, 255, 0.45);
       backdrop-filter: blur(12px);
@@ -49,8 +49,8 @@
       color: #0f172a;
       box-shadow: 0 6px 20px 0 rgba(31, 38, 135, 0.12);
     }
-
-    /* 統計篩選卡片樣式：點擊後改為淺灰色塊顯示 */
+ 
+    /* 統計篩選卡片樣式：點擊後以淺灰色區塊高亮 */
     .stat-card {
       transition: all 0.2s ease;
       cursor: pointer;
@@ -63,7 +63,7 @@
       background: #e2e8f0 !important;
       box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
     }
-
+ 
     /* 滑動選單外殼 */
     .swipe-container {
       position: relative;
@@ -71,7 +71,7 @@
       border-radius: 1.25rem;
       background-color: #cbd5e1;
     }
-
+ 
     /* 卡片主體 */
     .swipe-content {
       position: relative;
@@ -85,7 +85,7 @@
     .swipe-content:active {
       cursor: grabbing;
     }
-
+ 
     /* 滑開後呈現的按鈕層 */
     .swipe-actions {
       position: absolute;
@@ -101,7 +101,7 @@
       z-index: 5;
       background-color: #cbd5e1;
     }
-
+ 
     .action-btn-edit {
       background-color: #3b82f6;
       color: white;
@@ -115,7 +115,7 @@
       font-weight: 600;
       box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
-
+ 
     .action-btn-delete {
       background-color: #ef4444;
       color: white;
@@ -132,7 +132,7 @@
   </style>
 </head>
 <body class="p-4 md:p-8 pb-12">
-
+ 
   <div class="max-w-2xl mx-auto space-y-6">
     
     <!-- 外部頂部標題置中，右側放透明玻璃新增按鈕 -->
@@ -143,7 +143,7 @@
         <span>新增帳單</span>
       </button>
     </div>
-
+ 
     <!-- 頂部統計與篩選卡片區塊 -->
     <div class="glass-card rounded-3xl p-6 relative overflow-hidden">
       <div class="grid grid-cols-4 gap-2 text-center">
@@ -165,12 +165,12 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- 清單容器 -->
     <div id="card-list" class="space-y-4"></div>
-
+ 
   </div>
-
+ 
   <!-- Modal 彈窗 -->
   <div id="modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md hidden flex items-center justify-center p-4 z-50">
     <div class="glass-card rounded-3xl w-full max-w-md p-6 space-y-5 shadow-xl bg-white/95">
@@ -178,15 +178,15 @@
         <h2 id="modal-title" class="text-lg font-bold text-slate-800">新增帳單</h2>
         <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-
+ 
       <form id="card-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
         <input type="hidden" id="card-id">
         
         <div>
           <label class="block text-xs text-slate-600 mb-1">帳單項目</label>
-          <input type="text" id="bank-name" required placeholder="例如: 中信信用卡、房屋貸款" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm">
+          <input type="text" id="bank-name" required placeholder="例如: 玉山信用卡、電信費" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm">
         </div>
-
+ 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs text-slate-600 mb-1">每期結帳日</label>
@@ -197,7 +197,7 @@
             <input type="number" id="due-day" min="1" max="31" required placeholder="1 - 31" class="w-full glass-input rounded-xl px-4 py-2.5 text-sm">
           </div>
         </div>
-
+ 
         <div class="pt-2 flex justify-end space-x-3">
           <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs text-slate-600 hover:bg-slate-200/50">取消</button>
           <button type="submit" class="glass-button-primary px-5 py-2 rounded-xl text-xs font-medium">儲存</button>
@@ -205,54 +205,50 @@
       </form>
     </div>
   </div>
-
+ 
   <script>
     let currentFilter = 'all';
-
+ 
     const now = new Date();
     const todayDay = now.getDate();
     const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
-    let itemsData = JSON.parse(localStorage.getItem('cards_account_v24')) || [
-      { id: '1', bankName: '玉山信用卡', statementDay: 2, dueDay: 7, isPaid: false, isForceUnbilled: false },
-      { id: '2', bankName: '國泰信用卡', statementDay: 25, dueDay: 10, isPaid: false, isForceUnbilled: false },
-      { id: '3', bankName: '房屋貸款', statementDay: 1, dueDay: 15, isPaid: false, isForceUnbilled: false }
-    ];
-
+ 
+    let itemsData = JSON.parse(localStorage.getItem('cards_account_v24')) || [];
+ 
     let activeSwipedElem = null;
-
+ 
     function saveCurrentData() {
       localStorage.setItem('cards_account_v24', JSON.stringify(itemsData));
       render();
     }
-
+ 
     function getButtonConfig(item) {
       const { statementDay, dueDay, isPaid, isForceUnbilled } = item;
-
+ 
       if (isForceUnbilled) {
         return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
       }
-
+ 
       const effectiveDueDay = dueDay < statementDay ? dueDay + daysInCurrentMonth : dueDay;
       const effectiveToday = (todayDay < statementDay && dueDay < statementDay) ? todayDay + daysInCurrentMonth : todayDay;
-
+ 
       const isBetweenDueAndStatement = isPaid && (todayDay > dueDay && todayDay <= statementDay);
-
+ 
       if (isBetweenDueAndStatement || todayDay <= statementDay) {
         return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
       }
-
+ 
       if (!isPaid && effectiveToday > effectiveDueDay) {
         return { type: 'overdue', text: '已逾期', class: 'bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 cursor-pointer font-semibold', disabled: false };
       }
-
+ 
       if (isPaid && effectiveToday <= effectiveDueDay) {
         return { type: 'paid', text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
       }
-
+ 
       return { type: 'unpaid', text: '待繳費', class: 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 cursor-pointer font-semibold', disabled: false };
     }
-
+ 
     function setFilter(filter) {
       closeAllSwipes();
       currentFilter = filter;
@@ -265,21 +261,25 @@
           card.classList.remove('stat-card-active');
         }
       });
-
+ 
       render();
     }
-
+ 
     function render() {
       const cardList = document.getElementById('card-list');
       let data = [...itemsData];
       
       data.sort((a, b) => a.statementDay - b.statementDay);
-
+ 
+      const unpaidCount = itemsData.filter(c => getButtonConfig(c).type === 'unpaid').length;
+      const paidCount = itemsData.filter(c => getButtonConfig(c).type === 'paid').length;
+      const overdueCount = itemsData.filter(c => getButtonConfig(c).type === 'overdue').length;
+ 
       document.getElementById('stat-total').innerText = itemsData.length;
-      document.getElementById('stat-unpaid').innerText = itemsData.filter(c => getButtonConfig(c).type === 'unpaid').length;
-      document.getElementById('stat-paid').innerText = itemsData.filter(c => getButtonConfig(c).type === 'paid').length;
-      document.getElementById('stat-overdue').innerText = itemsData.filter(c => getButtonConfig(c).type === 'overdue').length;
-
+      document.getElementById('stat-unpaid').innerText = unpaidCount;
+      document.getElementById('stat-paid').innerText = paidCount;
+      document.getElementById('stat-overdue').innerText = overdueCount;
+ 
       if (currentFilter === 'unpaid') {
         data = data.filter(c => getButtonConfig(c).type === 'unpaid');
       } else if (currentFilter === 'paid') {
@@ -287,7 +287,7 @@
       } else if (currentFilter === 'overdue') {
         data = data.filter(c => getButtonConfig(c).type === 'overdue');
       }
-
+ 
       if (itemsData.length === 0) {
         cardList.innerHTML = `
           <div class="glass-card rounded-2xl p-6 text-center text-slate-700 text-sm font-medium leading-relaxed shadow-sm">
@@ -296,20 +296,29 @@
         `;
         return;
       }
-
+ 
       if (data.length === 0) {
+        let statusText = '';
+        if (currentFilter === 'unpaid') statusText = '待繳費';
+        else if (currentFilter === 'paid') statusText = '已繳費';
+        else if (currentFilter === 'overdue') statusText = '已逾期';
+ 
         cardList.innerHTML = `
-          <div class="glass-card rounded-2xl p-6 text-center text-slate-500 text-sm italic font-medium">
-            Oh, no, oh, no. Oh, no, no, no, no, no.
+          <div class="glass-card rounded-2xl p-6 text-center text-slate-600 text-sm font-medium shadow-sm">
+            好讚唷，您沒有任何${statusText}帳單
           </div>
         `;
         return;
       }
-
+ 
       cardList.innerHTML = data.map(item => {
         const btn = getButtonConfig(item);
         const dueText = item.dueDay <= item.statementDay ? `次月${item.dueDay}日` : `每月 ${item.dueDay} 日`;
-
+ 
+        // 判斷是否為已繳費狀態且有記錄繳費日期
+        const isPaidStatus = btn.type === 'paid';
+        const paidDateText = (isPaidStatus && item.paidDate) ? `已於 ${item.paidDate} 完成繳費` : '';
+ 
         return `
           <div class="swipe-container shadow-sm" id="container-${item.id}">
             <div class="swipe-actions">
@@ -320,55 +329,63 @@
                  onmousedown="startDrag(event, '${item.id}')"
                  ontouchstart="startDrag(event, '${item.id}')">
               
-              <div class="flex items-center justify-between mb-2">
-                <h3 class="text-base font-bold text-slate-800">${item.bankName}</h3>
-                
-                <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="px-3 py-1.5 rounded-xl text-xs transition-all ${btn.class}">
-                  ${btn.text}
-                </button>
-              </div>
-
-              <div class="flex justify-between items-center text-xs text-slate-500">
-                <div>
-                  <span>結帳日：</span>
-                  <span class="font-semibold text-slate-700">每月 ${item.statementDay} 日</span>
+              <div class="flex items-start justify-between">
+                <!-- 左側：項目名稱 + 結帳日 + 截止日 (移至左側結帳日下方) -->
+                <div class="space-y-1">
+                  <h3 class="text-base font-bold text-slate-800">${item.bankName}</h3>
+                  <div class="text-xs text-slate-500 space-y-0.5">
+                    <div>結帳日：<span class="font-semibold text-slate-700">每月 ${item.statementDay} 日</span></div>
+                    <div>繳款截止日：<span class="font-semibold text-slate-700">${dueText}</span></div>
+                  </div>
                 </div>
-                <div>
-                  <span>繳款截止日：</span>
-                  <span class="font-semibold text-slate-700">${dueText}</span>
+ 
+                <!-- 右側：狀態按鈕 + 完成繳費提示文案 -->
+                <div class="flex flex-col items-end space-y-1">
+                  <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="px-3 py-1.5 rounded-xl text-xs transition-all ${btn.class}">
+                    ${btn.text}
+                  </button>
+                  ${paidDateText ? `<span class="text-[11px] text-emerald-600 font-medium">${paidDateText}</span>` : ''}
                 </div>
               </div>
+ 
             </div>
           </div>
         `;
       }).join('');
     }
-
+ 
     function handleBtnClick(id) {
       closeAllSwipes();
       const item = itemsData.find(c => c.id === id);
       if (!item) return;
-
+ 
       const btnConfig = getButtonConfig(item);
-
+ 
       if (btnConfig.type === 'overdue') {
         item.isForceUnbilled = true;
         item.isPaid = false;
+        delete item.paidDate;
       } else if (btnConfig.type === 'unpaid') {
         item.isPaid = true;
         item.isForceUnbilled = false;
+        // 點擊待繳費變為已繳費時，記錄當前日期 mm/dd
+        const nowObj = new Date();
+        const mm = String(nowObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(nowObj.getDate()).padStart(2, '0');
+        item.paidDate = `${mm}/${dd}`;
       } else if (btnConfig.type === 'paid') {
         item.isPaid = false;
         item.isForceUnbilled = false;
+        delete item.paidDate;
       }
-
+ 
       saveCurrentData();
     }
-
+ 
     let startX = 0;
     let isDragging = false;
     let currentDragId = null;
-
+ 
     function startDrag(e, id) {
       if (activeSwipedElem && activeSwipedElem !== id) {
         closeAllSwipes();
@@ -379,42 +396,42 @@
       
       const content = document.getElementById(`content-${id}`);
       content.style.transition = 'none';
-
+ 
       const moveHandler = (evt) => onDrag(evt, id);
       const endHandler = (evt) => stopDrag(evt, id, moveHandler, endHandler);
-
+ 
       window.addEventListener('mousemove', moveHandler);
       window.addEventListener('touchmove', moveHandler);
       window.addEventListener('mouseup', endHandler);
       window.addEventListener('touchend', endHandler);
     }
-
+ 
     function onDrag(e, id) {
       if (!isDragging) return;
       const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
       const deltaX = currentX - startX;
       const content = document.getElementById(`content-${id}`);
-
+ 
       if (deltaX < 0 && deltaX > -180) {
         content.style.transform = `translateX(${deltaX}px)`;
       }
     }
-
+ 
     function stopDrag(e, id, moveHandler, endHandler) {
       if (!isDragging) return;
       isDragging = false;
-
+ 
       window.removeEventListener('mousemove', moveHandler);
       window.removeEventListener('touchmove', moveHandler);
       window.removeEventListener('mouseup', endHandler);
       window.removeEventListener('touchend', endHandler);
-
+ 
       const content = document.getElementById(`content-${id}`);
       content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
-
+ 
       const endX = e.type.includes('touch') ? (e.changedTouches[0] ? e.changedTouches[0].clientX : startX) : e.clientX;
       const deltaX = endX - startX;
-
+ 
       if (deltaX < -45) {
         content.style.transform = 'translateX(-136px)';
         activeSwipedElem = id;
@@ -423,7 +440,7 @@
         if (activeSwipedElem === id) activeSwipedElem = null;
       }
     }
-
+ 
     function closeAllSwipes() {
       if (activeSwipedElem) {
         const content = document.getElementById(`content-${activeSwipedElem}`);
@@ -434,7 +451,7 @@
         activeSwipedElem = null;
       }
     }
-
+ 
     function openModal(editId = null) {
       closeAllSwipes();
       document.getElementById('modal').classList.remove('hidden');
@@ -452,41 +469,75 @@
         document.getElementById('card-id').value = '';
       }
     }
-
+ 
     function closeModal() {
       document.getElementById('modal').classList.add('hidden');
     }
-
+ 
     function handleFormSubmit(e) {
       e.preventDefault();
       const id = document.getElementById('card-id').value;
       const bankName = document.getElementById('bank-name').value;
       const statementDay = parseInt(document.getElementById('statement-day').value);
       const dueDay = parseInt(document.getElementById('due-day').value);
-
+ 
       if (id) {
         const index = itemsData.findIndex(c => c.id === id);
         itemsData[index] = { ...itemsData[index], bankName, statementDay, dueDay, isForceUnbilled: false };
       } else {
         itemsData.push({ id: Date.now().toString(), bankName, statementDay, dueDay, isPaid: false, isForceUnbilled: false });
       }
-
+ 
       saveCurrentData();
       closeModal();
     }
-
+ 
     function editCard(id) {
       openModal(id);
     }
-
+ 
     function deleteCard(id) {
       if (confirm('確定要刪除這筆帳單資料嗎？')) {
         itemsData = itemsData.filter(c => c.id !== id);
         saveCurrentData();
       }
     }
-
+ 
+    /* 每日晚上 8 點自動推播檢查邏輯 */
+    function initNotificationChecker() {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+ 
+      setInterval(() => {
+        const nowTime = new Date();
+        const currentHour = nowTime.getHours();
+        const currentMinute = nowTime.getMinutes();
+ 
+        if (currentHour === 20 && currentMinute === 0) {
+          checkAndSendNotification();
+        }
+      }, 60000);
+    }
+ 
+    function checkAndSendNotification() {
+      const unpaidCount = itemsData.filter(c => getButtonConfig(c).type === 'unpaid').length;
+      const overdueCount = itemsData.filter(c => getButtonConfig(c).type === 'overdue').length;
+ 
+      if (unpaidCount > 0 || overdueCount > 0) {
+        const message = `敬告貴賓，您尚有${unpaidCount}筆待繳費帳單，${overdueCount}筆已逾期帳單，讚讚唷`;
+        
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("AI喵喵系統 - 帳單提醒", {
+            body: message,
+            icon: "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/credit-card.svg"
+          });
+        }
+      }
+    }
+ 
     render();
+    initNotificationChecker();
   </script>
 </body>
 </html>
