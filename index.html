@@ -2,7 +2,6 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <!-- 修正 1：限制 viewport 防止 iOS 自動放大頁面 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AI喵喵系統</title>
 
@@ -22,7 +21,7 @@
       color: #0f172a;
       user-select: none;
       -webkit-user-select: none;
-      overflow-x: hidden; /* 確保防止水平溢出 */
+      overflow-x: hidden;
     }
 
     .glass-card {
@@ -33,7 +32,6 @@
       border: none !important;
     }
 
-    /* 修正 2：強制輸入框字級設為 16px (font-size: 16px)，防止 iOS Safari 自動 Zoom In */
     .glass-input {
       background: rgba(248, 250, 252, 0.9);
       color: #0f172a;
@@ -146,7 +144,7 @@
 
   <div class="max-w-2xl mx-auto space-y-6">
     
-    <!-- 頂部區塊：荷包蛋圖示 + AI喵喵系統 -->
+    <!-- 頂部區塊 -->
     <div class="flex items-center justify-between px-2 py-1">
       <div class="flex items-center space-x-2.5">
         <div class="w-9 h-9 rounded-2xl bg-amber-100/80 border border-amber-300/60 flex items-center justify-center text-amber-500 shadow-sm">
@@ -400,6 +398,7 @@
     let currentDragId = null;
 
     function startDrag(e, id) {
+      // 確保同一時間只能滑開一筆：若有其他正在展開的卡片，立刻關閉它
       if (activeSwipedElem && activeSwipedElem !== id) {
         closeAllSwipes();
       }
@@ -408,7 +407,7 @@
       startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
       
       const content = document.getElementById(`content-${id}`);
-      content.style.transition = 'none';
+      if (content) content.style.transition = 'none';
 
       const moveHandler = (evt) => onDrag(evt, id);
       const endHandler = (evt) => stopDrag(evt, id, moveHandler, endHandler);
@@ -425,7 +424,7 @@
       const deltaX = currentX - startX;
       const content = document.getElementById(`content-${id}`);
 
-      if (deltaX < 0 && deltaX > -180) {
+      if (content && deltaX < 0 && deltaX > -180) {
         content.style.transform = `translateX(${deltaX}px)`;
       }
     }
@@ -440,6 +439,8 @@
       window.removeEventListener('touchend', endHandler);
 
       const content = document.getElementById(`content-${id}`);
+      if (!content) return;
+
       content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
 
       const endX = e.type.includes('touch') ? (e.changedTouches[0] ? e.changedTouches[0].clientX : startX) : e.clientX;
@@ -465,6 +466,16 @@
       }
     }
 
+    // 點擊頁面其他地方時，自動收回已展開的滑動選單
+    window.addEventListener('click', (e) => {
+      if (activeSwipedElem) {
+        const container = document.getElementById(`container-${activeSwipedElem}`);
+        if (container && !container.contains(e.target)) {
+          closeAllSwipes();
+        }
+      }
+    });
+
     function openModal(editId = null) {
       closeAllSwipes();
       document.getElementById('modal').classList.remove('hidden');
@@ -483,9 +494,8 @@
       }
     }
 
-    /* 修正 3：關閉 Modal 時讓輸入框強制 Focus 釋放並重置水平滾動視角 */
     function closeModal() {
-      document.activeElement.blur();
+      if (document.activeElement) document.activeElement.blur();
       document.getElementById('modal').classList.add('hidden');
       window.scrollTo(0, 0);
     }
