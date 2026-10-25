@@ -207,8 +207,8 @@
         <input type="hidden" id="card-id">
         
         <div>
-          <label class="block text-xs text-slate-600 mb-1">帳單項目（限12字）</label>
-          <input type="text" id="bank-name" maxlength="12" oninput="if(this.value.length>12)this.value=this.value.slice(0,12)" required placeholder="例如: 玉山信用卡、電信費" class="w-full glass-input rounded-xl px-4 py-2.5">
+          <label class="block text-xs text-slate-600 mb-1">帳單項目</label>
+          <input type="text" id="bank-name" required placeholder="例如: 玉山信用卡、電信費" class="w-full glass-input rounded-xl px-4 py-2.5">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -360,7 +360,7 @@
               <div class="flex items-center justify-between gap-3">
                 <!-- 左側：項目名稱與日期 -->
                 <div class="space-y-1 min-w-0 flex-1">
-                  <h3 class="text-base font-bold text-slate-800 break-words leading-snug">${item.bankName}</h3>
+                  <h3 class="text-base font-bold text-slate-800 truncate leading-snug">${item.bankName}</h3>
                   <div class="text-xs text-slate-500 space-y-0.5">
                     <div>結帳日：<span class="font-semibold text-slate-700">每月 ${item.statementDay} 日</span></div>
                     <div>繳款截止日：<span class="font-semibold text-slate-700">${dueText}</span></div>
@@ -550,9 +550,7 @@
     function handleFormSubmit(e) {
       e.preventDefault();
       const id = document.getElementById('card-id').value;
-      let bankName = document.getElementById('bank-name').value.trim();
-      if (bankName.length > 12) bankName = bankName.slice(0, 12);
-
+      const bankName = document.getElementById('bank-name').value.trim();
       const statementDay = parseInt(document.getElementById('statement-day').value);
       const dueDay = parseInt(document.getElementById('due-day').value);
 
