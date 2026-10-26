@@ -365,12 +365,12 @@
 
         return `
           <div class="swipe-container ${!isLast ? 'border-b border-slate-100/80' : ''}" id="container-${item.id}">
-            <div class="swipe-actions-left">
+            <div class="swipe-actions-left" id="actions-left-${item.id}">
               <button onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="${pinBtnText}">
                 ${pinBtnIconHtml}
               </button>
             </div>
-            <div class="swipe-actions-right">
+            <div class="swipe-actions-right" id="actions-right-${item.id}">
               <button onclick="editCard('${item.id}')" class="action-btn action-btn-edit" title="編輯">
                 <i class="fa-solid fa-pen"></i>
               </button>
@@ -492,7 +492,7 @@
           }
           return;
         }
-        // 降低靈敏度：必須滑動超過 15px 才判定並鎖定為水平滑動
+        // 降低靈敏度門檻：大於 15px 才鎖定為水平滑動
         if (Math.abs(deltaX) > 15) {
           isDirectionLocked = true;
         }
@@ -500,11 +500,26 @@
 
       if (isDirectionLocked) {
         const content = document.getElementById(`content-${id}`);
+        const leftActions = document.getElementById(`actions-left-${id}`);
+        const rightActions = document.getElementById(`actions-right-${id}`);
+
         if (content) {
-          if (deltaX < 0 && deltaX > -140) {
-            content.style.transform = `translateX(${deltaX}px)`;
-          } else if (deltaX > 0 && deltaX < 85) {
-            content.style.transform = `translateX(${deltaX}px)`;
+          if (deltaX < 0) {
+            // 往左滑：顯示右側按鈕，隱藏左側按鈕避免穿透
+            if (leftActions) leftActions.style.display = 'none';
+            if (rightActions) rightActions.style.display = 'flex';
+
+            if (deltaX > -140) {
+              content.style.transform = `translateX(${deltaX}px)`;
+            }
+          } else if (deltaX > 0) {
+            // 往右滑：顯示左側按鈕，隱藏右側按鈕避免穿透
+            if (leftActions) leftActions.style.display = 'flex';
+            if (rightActions) rightActions.style.display = 'none';
+
+            if (deltaX < 85) {
+              content.style.transform = `translateX(${deltaX}px)`;
+            }
           }
         }
       }
@@ -525,6 +540,9 @@
       window.removeEventListener('touchend', endHandler);
 
       const content = document.getElementById(`content-${id}`);
+      const leftActions = document.getElementById(`actions-left-${id}`);
+      const rightActions = document.getElementById(`actions-right-${id}`);
+
       isDragging = false;
       currentDragId = null;
       isDirectionLocked = false;
@@ -536,15 +554,22 @@
       const endX = e.type.includes('touch') ? (e.changedTouches[0] ? e.changedTouches[0].clientX : startX) : e.clientX;
       const deltaX = endX - startX;
 
-      // 降低靈敏度：左滑超過 75px 或是右滑超過 75px 才確實固定展開按鈕
+      // 降低靈敏度門檻：左滑或右滑需超過 75px 才會確實固定展開
       if (deltaX < -75) {
+        if (leftActions) leftActions.style.display = 'none';
+        if (rightActions) rightActions.style.display = 'flex';
         content.style.transform = 'translateX(-120px)';
         activeSwipedElem = id;
       } else if (deltaX > 75) {
+        if (leftActions) leftActions.style.display = 'flex';
+        if (rightActions) rightActions.style.display = 'none';
         content.style.transform = 'translateX(70px)';
         activeSwipedElem = id;
       } else {
         content.style.transform = 'translateX(0px)';
+        // 恢復雙邊顯示以便下次滑動
+        if (leftActions) leftActions.style.display = 'flex';
+        if (rightActions) rightActions.style.display = 'flex';
         if (activeSwipedElem === id) activeSwipedElem = null;
       }
     }
@@ -553,9 +578,14 @@
       const allContents = document.querySelectorAll('.swipe-content');
       allContents.forEach(content => {
         const id = content.id.replace('content-', '');
+        const leftActions = document.getElementById(`actions-left-${id}`);
+        const rightActions = document.getElementById(`actions-right-${id}`);
+
         if (id !== exceptId) {
           content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
           content.style.transform = 'translateX(0px)';
+          if (leftActions) leftActions.style.display = 'flex';
+          if (rightActions) rightActions.style.display = 'flex';
         }
       });
       if (!exceptId) activeSwipedElem = null;
