@@ -82,7 +82,7 @@
       overflow: hidden;
     }
 
-    /* 滑動選單外殼 (列表內部項目) - 已調整為白色背景 */
+    /* 滑動選單外殼 */
     .swipe-container {
       position: relative;
       overflow: hidden;
@@ -104,13 +104,13 @@
       cursor: grabbing;
     }
 
-    /* 動作區塊背景 - 已調整為白色背景 */
-    .swipe-actions {
+    /* 左滑動作區塊（編輯、刪除） */
+    .swipe-actions-right {
       position: absolute;
       top: 0;
       right: 0;
       bottom: 0;
-      width: 150px;
+      width: 128px;
       display: flex;
       align-items: center;
       justify-content: flex-end;
@@ -120,33 +120,35 @@
       background-color: #ffffff;
     }
 
-    .action-btn-edit {
-      background-color: #3b82f6;
-      color: white;
-      width: 56px;
-      height: 72%;
-      border-radius: 14px;
+    /* 右滑動作區塊（釘選） */
+    .swipe-actions-left {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 70px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 0.875rem;
-      font-weight: 600;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      justify-content: flex-start;
+      padding-left: 12px;
+      z-index: 5;
+      background-color: #ffffff;
     }
 
-    .action-btn-delete {
-      background-color: #ef4444;
-      color: white;
-      width: 56px;
+    .action-btn {
+      width: 48px;
       height: 72%;
       border-radius: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.875rem;
-      font-weight: 600;
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+      font-size: 1rem;
+      color: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+    .action-btn-edit { background-color: #3b82f6; }
+    .action-btn-delete { background-color: #ef4444; }
+    .action-btn-pin { background-color: #cbd5e1; width: 56px; }
   </style>
 </head>
 <body class="p-4 md:p-8 pb-12">
@@ -189,7 +191,7 @@
       </div>
     </div>
 
-    <!-- 清單容器 (單一 iOS 質感大清單容器) -->
+    <!-- 清單容器 -->
     <div id="card-list"></div>
 
   </div>
@@ -299,7 +301,11 @@
       const cardList = document.getElementById('card-list');
       let data = [...itemsData];
       
-      data.sort((a, b) => a.statementDay - b.statementDay);
+      data.sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return a.statementDay - b.statementDay;
+      });
 
       const unpaidCount = itemsData.filter(c => getButtonConfig(c).type === 'unpaid').length;
       const paidCount = itemsData.filter(c => getButtonConfig(c).type === 'paid').length;
@@ -348,11 +354,29 @@
         const paidDateText = (isPaidStatus && item.paidDate) ? `已於 ${item.paidDate} 完成` : '';
         const isLast = index === data.length - 1;
 
+        // 帳單名稱前方的釘選 icon 維持淺灰色並具備防裁切容器
+        const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-5 h-5 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-base transform -rotate-45"></i></span>` : '';
+        const pinBtnText = item.isPinned ? '取消釘選' : '釘選';
+        
+        // 已釘選與未釘選皆維持白色圖示（text-white）
+        const pinBtnIconHtml = item.isPinned 
+          ? `<i class="fa-solid fa-thumbtack-slash text-white text-base"></i>` 
+          : `<i class="fa-solid fa-thumbtack text-white text-base"></i>`;
+
         return `
           <div class="swipe-container ${!isLast ? 'border-b border-slate-100/80' : ''}" id="container-${item.id}">
-            <div class="swipe-actions">
-              <button onclick="editCard('${item.id}')" class="action-btn-edit">編輯</button>
-              <button onclick="deleteCard('${item.id}')" class="action-btn-delete">刪除</button>
+            <div class="swipe-actions-left">
+              <button onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="${pinBtnText}">
+                ${pinBtnIconHtml}
+              </button>
+            </div>
+            <div class="swipe-actions-right">
+              <button onclick="editCard('${item.id}')" class="action-btn action-btn-edit" title="編輯">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button onclick="deleteCard('${item.id}')" class="action-btn action-btn-delete" title="刪除">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
             </div>
             <div class="swipe-content p-4" id="content-${item.id}"
                  onmousedown="startDrag(event, '${item.id}')"
@@ -361,7 +385,9 @@
               <div class="flex items-center justify-between gap-3">
                 <!-- 左側：項目名稱與日期 -->
                 <div class="space-y-1 min-w-0 flex-1">
-                  <h3 class="text-base font-bold text-slate-800 truncate leading-snug">${item.bankName}</h3>
+                  <h3 class="text-base font-bold text-slate-800 truncate leading-snug flex items-center">
+                    ${pinIconHtml}<span class="truncate">${item.bankName}</span>
+                  </h3>
                   <div class="text-xs text-slate-500 space-y-0.5">
                     <div>結帳日：<span class="font-semibold text-slate-700">每月 ${item.statementDay} 日</span></div>
                     <div>繳款截止日：<span class="font-semibold text-slate-700">${dueText}</span></div>
@@ -383,6 +409,15 @@
       }).join('');
 
       cardList.innerHTML = `<div class="list-wrapper">${listItemsHtml}</div>`;
+    }
+
+    function togglePin(id) {
+      closeAllSwipes();
+      const item = itemsData.find(c => c.id === id);
+      if (item) {
+        item.isPinned = !item.isPinned;
+        saveCurrentData();
+      }
     }
 
     function handleBtnClick(id) {
@@ -464,8 +499,12 @@
 
       if (isDirectionLocked) {
         const content = document.getElementById(`content-${id}`);
-        if (content && deltaX < 0 && deltaX > -180) {
-          content.style.transform = `translateX(${deltaX}px)`;
+        if (content) {
+          if (deltaX < 0 && deltaX > -140) {
+            content.style.transform = `translateX(${deltaX}px)`;
+          } else if (deltaX > 0 && deltaX < 85) {
+            content.style.transform = `translateX(${deltaX}px)`;
+          }
         }
       }
     }
@@ -497,7 +536,10 @@
       const deltaX = endX - startX;
 
       if (deltaX < -45) {
-        content.style.transform = 'translateX(-136px)';
+        content.style.transform = 'translateX(-120px)';
+        activeSwipedElem = id;
+      } else if (deltaX > 45) {
+        content.style.transform = 'translateX(70px)';
         activeSwipedElem = id;
       } else {
         content.style.transform = 'translateX(0px)';
@@ -559,7 +601,7 @@
         const index = itemsData.findIndex(c => c.id === id);
         itemsData[index] = { ...itemsData[index], bankName, statementDay, dueDay, isForceUnbilled: false };
       } else {
-        itemsData.push({ id: Date.now().toString(), bankName, statementDay, dueDay, isPaid: false, isForceUnbilled: false });
+        itemsData.push({ id: Date.now().toString(), bankName, statementDay, dueDay, isPaid: false, isForceUnbilled: false, isPinned: false });
       }
 
       saveCurrentData();
