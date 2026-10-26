@@ -360,7 +360,7 @@
         
         // 已釘選與未釘選皆維持白色圖示（text-white）
         const pinBtnIconHtml = item.isPinned 
-          ? `<i class="fa-solid fa-thumbtack-slash text-white text-base"></i>` 
+          ? `<i class="fa-solid fa-thumbtack text-white text-base transform -rotate-45"></i>` 
           : `<i class="fa-solid fa-thumbtack text-white text-base"></i>`;
 
         return `
@@ -492,7 +492,8 @@
           }
           return;
         }
-        if (Math.abs(deltaX) > 5) {
+        // 降低靈敏度：必須滑動超過 15px 才判定並鎖定為水平滑動
+        if (Math.abs(deltaX) > 15) {
           isDirectionLocked = true;
         }
       }
@@ -535,10 +536,11 @@
       const endX = e.type.includes('touch') ? (e.changedTouches[0] ? e.changedTouches[0].clientX : startX) : e.clientX;
       const deltaX = endX - startX;
 
-      if (deltaX < -45) {
+      // 降低靈敏度：左滑超過 75px 或是右滑超過 75px 才確實固定展開按鈕
+      if (deltaX < -75) {
         content.style.transform = 'translateX(-120px)';
         activeSwipedElem = id;
-      } else if (deltaX > 45) {
+      } else if (deltaX > 75) {
         content.style.transform = 'translateX(70px)';
         activeSwipedElem = id;
       } else {
