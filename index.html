@@ -171,8 +171,7 @@
     .action-btn-pin { background-color: #cbd5e1; width: 56px; }
     .action-btn-unpin { background-color: #64748b; }
 
-    /* 動作按鈕預設完全隱藏，只有滑動中或展開時才顯示，
-       避免 iOS 快速捲動 / 橡皮筋效果時圖層來不及繪製而露出紅藍按鈕 */
+    /* 動作按鈕預設完全隱藏，只有滑動中或展開時才顯示 */
     .swipe-actions-left,
     .swipe-actions-right {
       display: none;
@@ -268,10 +267,6 @@
   <script>
     let currentFilter = 'all';
 
-    const now = new Date();
-    const todayDay = now.getDate();
-    const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
     let itemsData = JSON.parse(localStorage.getItem('cards_account_v24')) || [];
 
     let activeSwipedElem = null;
@@ -302,7 +297,6 @@
       isDirectionLocked = false;
     }
 
-    // 等收合動畫（0.25s）結束後，才把動作按鈕從畫面上移除（display: none）
     function resetActionsDisplay(id) {
       setTimeout(() => {
         const content = document.getElementById(`content-${id}`);
@@ -331,29 +325,53 @@
     function getButtonConfig(item) {
       const { statementDay, dueDay, isPaid, isForceUnbilled } = item;
 
+      // 手動標記未出帳
       if (isForceUnbilled) {
         return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
       }
 
-      const effectiveDueDay = dueDay < statementDay ? dueDay + daysInCurrentMonth : dueDay;
-      const effectiveToday = (todayDay < statementDay && dueDay < statementDay) ? todayDay + daysInCurrentMonth : todayDay;
+      // 計算當前精準的 Date 物件進行邏輯判斷
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      let stmtDate = new Date(now.getFullYear(), now.getMonth(), statementDay);
+      let dueDate = new Date(now.getFullYear(), now.getMonth(), dueDay);
 
-      const isBetweenDueAndStatement = isPaid && (todayDay > dueDay && todayDay <= statementDay);
-
-      if (isBetweenDueAndStatement || todayDay <= statementDay) {
-        return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
+      // 若截止日數字小於結帳日，代表截止日落在次月
+      if (dueDay < statementDay) {
+        dueDate = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
       }
 
-      if (!isPaid && effectiveToday > effectiveDueDay) {
-        return { type: 'overdue', text: '已逾期', class: 'bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 cursor-pointer font-semibold', disabled: false };
+      // 當今日已經超過上一個當期的截止日，計算基準向後推進一個月
+      if (today > dueDate) {
+        stmtDate = new Date(now.getFullYear(), now.getMonth() + 1, statementDay);
+        dueDate = new Date(now.getFullYear(), now.getMonth() + (dueDay < statementDay ? 2 : 1), dueDay);
       }
 
-      if (isPaid && effectiveToday <= effectiveDueDay) {
+      // 1. 已繳費狀態判斷
+      if (isPaid) {
+        // 如果當前日期已經過結帳日，重置為「未出帳」準備迎接下一期
+        if (today > stmtDate) {
+          return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
+        }
         return { type: 'paid', text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
       }
 
-      // 「即將到期」已移除閃爍動畫 (animate-pulse)
-      if (!isPaid && (effectiveDueDay - effectiveToday <= 2)) {
+      // 2. 系統日 > 截止日，且未繳費 => 依照需求顯示為「未出帳」
+      if (today > dueDate) {
+        return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
+      }
+
+      // 3. 系統日 <= 結帳日 => 未出帳
+      if (today <= stmtDate) {
+        return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
+      }
+
+      // 4. 系統日在結帳日與截止日之間
+      const diffTime = dueDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 2) {
         return { type: 'expiring', text: '即將到期', class: 'bg-orange-500/15 text-orange-600 hover:bg-orange-500/25 cursor-pointer font-semibold', disabled: false };
       }
 
@@ -400,7 +418,6 @@
     }
 
     function render() {
-      // 重繪會重建所有 DOM，先清掉拖曳與展開狀態，避免與 DOM 不同步
       cleanupDrag();
       activeSwipedElem = null;
 
@@ -467,7 +484,6 @@
         const paidDateText = (isPaidStatus && item.paidDate) ? `已於 ${item.paidDate} 完成` : '';
         const isLast = index === data.length - 1;
 
-        // 已移除圖示上的 transform -rotate-45，避免 iOS 圖層合成問題
         const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs"></i></span>` : '';
         const pinBtnText = item.isPinned ? '取消釘選' : '釘選';
         const pinBtnIconHtml = `<i class="fa-solid fa-thumbtack text-white text-base"></i>`;
@@ -492,7 +508,6 @@
                  ontouchstart="startDrag(event, '${item.id}')">
               
               <div class="flex items-center justify-between gap-3">
-                <!-- 左側：項目名稱與日期 -->
                 <div class="space-y-1 min-w-0 flex-1">
                   <h3 class="text-base font-bold text-slate-800 truncate leading-snug flex items-center min-h-[1.5rem]">
                     ${pinIconHtml}<span class="truncate">${item.bankName}</span>
@@ -503,7 +518,6 @@
                   </div>
                 </div>
 
-                <!-- 右側：狀態按鈕與完成日期 -->
                 <div class="w-[110px] flex-shrink-0 flex flex-col items-center justify-center space-y-1 text-center">
                   <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="w-[90px] mx-auto py-1.5 rounded-xl text-xs transition-all ${btn.class}">
                     ${btn.text}
@@ -559,9 +573,7 @@
     function startDrag(e, id) {
       if (e.touches && e.touches.length > 1) return;
 
-      // 先清掉任何殘留的監聽器與狀態
       cleanupDrag();
-
       closeAllSwipes(id);
 
       isDragging = true;
@@ -595,7 +607,6 @@
 
       if (!isDirectionLocked) {
         if (Math.abs(deltaY) > Math.abs(deltaX)) {
-          // 判定為垂直捲動：還原位置與兩側按鈕，並清掉監聽器
           const content = document.getElementById(`content-${id}`);
           if (content) {
             content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
