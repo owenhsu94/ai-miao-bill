@@ -96,13 +96,10 @@
 
     /* 單一列表容器外殼 */
     .list-wrapper {
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      background: #ffffff;
       border-radius: 1.5rem;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
       overflow: hidden;
-      isolation: isolate;
     }
 
     /* 滑動選單外殼 */
@@ -122,10 +119,6 @@
       background-color: #ffffff !important;
       cursor: grab;
       width: 100%;
-      /* 固定成獨立圖層，避免被外層 backdrop-filter 干擾 */
-      will-change: transform;
-      -webkit-backface-visibility: hidden;
-      backface-visibility: hidden;
     }
     .swipe-content:active {
       cursor: grabbing;
@@ -182,15 +175,11 @@
        避免 iOS 快速捲動 / 橡皮筋效果時圖層來不及繪製而露出紅藍按鈕 */
     .swipe-actions-left,
     .swipe-actions-right {
-      visibility: hidden;
-      opacity: 0;
-      transition: opacity 0.15s ease, visibility 0s linear 0.25s;
+      display: none;
     }
     .swipe-container.show-right .swipe-actions-right,
     .swipe-container.show-left .swipe-actions-left {
-      visibility: visible;
-      opacity: 1;
-      transition-delay: 0s;
+      display: flex;
     }
   </style>
 </head>
@@ -313,13 +302,18 @@
       isDirectionLocked = false;
     }
 
+    // 等收合動畫（0.25s）結束後，才把動作按鈕從畫面上移除（display: none）
     function resetActionsDisplay(id) {
-      const l = document.getElementById(`actions-left-${id}`);
-      const r = document.getElementById(`actions-right-${id}`);
-      if (l) l.style.display = 'flex';
-      if (r) r.style.display = 'flex';
-      const c = document.getElementById(`container-${id}`);
-      if (c) c.classList.remove('show-left', 'show-right');
+      setTimeout(() => {
+        const content = document.getElementById(`content-${id}`);
+        if (!content || content.style.transform !== 'translateX(0px)') return;
+        const l = document.getElementById(`actions-left-${id}`);
+        const r = document.getElementById(`actions-right-${id}`);
+        if (l) l.style.display = '';
+        if (r) r.style.display = '';
+        const c = document.getElementById(`container-${id}`);
+        if (c) c.classList.remove('show-left', 'show-right');
+      }, 260);
     }
 
     function setActionSide(id, side) {
@@ -676,9 +670,7 @@
         activeSwipedElem = id;
       } else {
         content.style.transform = 'translateX(0px)';
-        if (leftActions) leftActions.style.display = 'flex';
-        if (rightActions) rightActions.style.display = 'flex';
-        setActionSide(id, null);
+        resetActionsDisplay(id);
         if (activeSwipedElem === id) activeSwipedElem = null;
       }
     }
