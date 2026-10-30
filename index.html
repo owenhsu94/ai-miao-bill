@@ -260,263 +260,20 @@
 
     const now = new Date();
     const todayDay = now.getDate();
-    const daysInCurrentMonth = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0
-    ).getDate();
+    const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
-    let itemsData = JSON.parse(
-      localStorage.getItem('cards_account_v24')
-    ) || [];
+    let itemsData = JSON.parse(localStorage.getItem('cards_account_v24')) || [];
 
     let activeSwipedElem = null;
     let isDragging = false;
     let currentDragId = null;
     let startX = 0;
     let startY = 0;
-    let startOffsetX = 0;
     let isDirectionLocked = false;
 
-    // 取得目前帳單卡片的水平位移
-    function getTranslateX(element) {
-      if (!element) return 0;
-
-      const transform = window.getComputedStyle(element).transform;
-
-      if (!transform || transform === 'none') return 0;
-
-      try {
-        return new DOMMatrixReadOnly(transform).m41;
-      } catch (error) {
-        const match = transform.match(/matrix\(([^)]+)\)/);
-        return match
-          ? Number(match[1].split(',')[4]) || 0
-          : 0;
-      }
-    }
-
-    // 統一管理帳單滑動狀態
-    // closed：關閉
-    // left-open：左滑，顯示編輯與刪除
-    // right-open：右滑，顯示釘選
-    function setSwipeState(id, state, animate = true) {
-      const content = document.getElementById(`content-${id}`);
-      const leftActions = document.getElementById(`actions-left-${id}`);
-      const rightActions = document.getElementById(`actions-right-${id}`);
-
-      if (!content) return;
-
-      content.style.transition = animate
-        ? 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)'
-        : 'none';
-
-      if (state === 'left-open') {
-        content.style.transform = 'translateX(-120px)';
-
-        if (leftActions) leftActions.style.display = 'none';
-        if (rightActions) rightActions.style.display = 'flex';
-
-        activeSwipedElem = id;
-
-      } else if (state === 'right-open') {
-        content.style.transform = 'translateX(70px)';
-
-        if (leftActions) leftActions.style.display = 'flex';
-        if (rightActions) rightActions.style.display = 'none';
-
-        activeSwipedElem = id;
-
-      } else {
-        content.style.transform = 'translateX(0px)';
-
-        if (leftActions) leftActions.style.display = 'flex';
-        if (rightActions) rightActions.style.display = 'flex';
-
-        if (activeSwipedElem === id) {
-          activeSwipedElem = null;
-        }
-      }
-    }
-
-    // 開始滑動
-    function startDrag(e, id) {
-      if (isDragging) return;
-      if (e.touches && e.touches.length > 1) return;
-
-      // 關閉其他帳單，但保留目前帳單的原有狀態
-      closeAllSwipes(id);
-
-      const content = document.getElementById(`content-${id}`);
-      if (!content) return;
-
-      isDragging = true;
-      currentDragId = id;
-      isDirectionLocked = false;
-
-      startX = e.type.includes('touch')
-        ? e.touches[0].clientX
-        : e.clientX;
-
-      startY = e.type.includes('touch')
-        ? e.touches[0].clientY
-        : e.clientY;
-
-      // 記錄開始滑動前的位移
-      startOffsetX = getTranslateX(content);
-
-      content.style.transition = 'none';
-
-      const moveHandler = (evt) => onDrag(evt, id);
-      const endHandler = (evt) =>
-        stopDrag(evt, id, moveHandler, endHandler);
-
-      window.addEventListener('mousemove', moveHandler);
-      window.addEventListener('touchmove', moveHandler, {
-        passive: true
-      });
-
-      window.addEventListener('mouseup', endHandler);
-      window.addEventListener('touchend', endHandler);
-      window.addEventListener('touchcancel', endHandler);
-    }
-
-    // 滑動過程
-    function onDrag(e, id) {
-      if (!isDragging || currentDragId !== id) return;
-
-      const point = e.type.includes('touch')
-        ? e.touches[0]
-        : e;
-
-      if (!point) return;
-
-      const deltaX = point.clientX - startX;
-      const deltaY = point.clientY - startY;
-
-      // 判斷是水平滑動還是垂直捲動
-      if (!isDirectionLocked) {
-        if (
-          Math.abs(deltaY) > Math.abs(deltaX) &&
-          Math.abs(deltaY) > 8
-        ) {
-          cancelDrag(id);
-          return;
-        }
-
-        if (Math.abs(deltaX) > 15) {
-          isDirectionLocked = true;
-        }
-      }
-
-      if (!isDirectionLocked) return;
-
-      const content = document.getElementById(`content-${id}`);
-      const leftActions = document.getElementById(`actions-left-${id}`);
-      const rightActions = document.getElementById(`actions-right-${id}`);
-
-      if (!content) return;
-
-      // 使用原本位移加上本次手勢距離
-      // 左滑最多 120px，右滑最多 70px
-      const nextX = Math.max(
-        -120,
-        Math.min(70, startOffsetX + deltaX)
-      );
-
-      content.style.transform = `translateX(${nextX}px)`;
-
-      // 同一時間只顯示其中一側的動作按鈕
-      if (nextX > 0) {
-        if (leftActions) leftActions.style.display = 'flex';
-        if (rightActions) rightActions.style.display = 'none';
-
-      } else if (nextX < 0) {
-        if (leftActions) leftActions.style.display = 'none';
-        if (rightActions) rightActions.style.display = 'flex';
-
-      } else {
-        if (leftActions) leftActions.style.display = 'flex';
-        if (rightActions) rightActions.style.display = 'flex';
-      }
-    }
-
-    // 取消滑動並還原原本狀態
-    function cancelDrag(id) {
-      const content = document.getElementById(`content-${id}`);
-
-      isDragging = false;
-      currentDragId = null;
-      isDirectionLocked = false;
-
-      if (startOffsetX <= -75) {
-        setSwipeState(id, 'left-open');
-      } else if (startOffsetX >= 35) {
-        setSwipeState(id, 'right-open');
-      } else {
-        setSwipeState(id, 'closed');
-      }
-
-      if (content) {
-        content.style.transition =
-          'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
-      }
-    }
-
-    // 結束滑動
-    function stopDrag(e, id, moveHandler, endHandler) {
-      window.removeEventListener('mousemove', moveHandler);
-      window.removeEventListener('touchmove', moveHandler);
-      window.removeEventListener('mouseup', endHandler);
-      window.removeEventListener('touchend', endHandler);
-      window.removeEventListener('touchcancel', endHandler);
-
-      if (!isDragging || currentDragId !== id) return;
-
-      const content = document.getElementById(`content-${id}`);
-
-      const endPoint = e.type.includes('touch')
-        ? (
-            e.changedTouches && e.changedTouches[0]
-              ? e.changedTouches[0]
-              : null
-          )
-        : e;
-
-      const endX = endPoint ? endPoint.clientX : startX;
-
-      // 計算滑動結束時的實際位置
-      const finalX = startOffsetX + (endX - startX);
-
-      isDragging = false;
-      currentDragId = null;
-      isDirectionLocked = false;
-
-      if (!content) return;
-
-      // 統一依最終位移決定卡片狀態
-      if (finalX <= -75) {
-        setSwipeState(id, 'left-open');
-      } else if (finalX >= 35) {
-        setSwipeState(id, 'right-open');
-      } else {
-        setSwipeState(id, 'closed');
-      }
-    }
-
-    // 關閉其他帳單的滑動選單
-    function closeAllSwipes(exceptId = null) {
-      document.querySelectorAll('.swipe-content').forEach(content => {
-        const id = content.id.replace('content-', '');
-
-        if (id !== exceptId) {
-          setSwipeState(id, 'closed');
-        }
-      });
-
-      if (!exceptId) {
-        activeSwipedElem = null;
-      }
+    function saveCurrentData() {
+      localStorage.setItem('cards_account_v24', JSON.stringify(itemsData));
+      render();
     }
 
     function getButtonConfig(item) {
@@ -543,6 +300,7 @@
         return { type: 'paid', text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
       }
 
+      // 「即將到期」已移除閃爍動畫 (animate-pulse)
       if (!isPaid && (effectiveDueDay - effectiveToday <= 2)) {
         return { type: 'expiring', text: '即將到期', class: 'bg-orange-500/15 text-orange-600 hover:bg-orange-500/25 cursor-pointer font-semibold', disabled: false };
       }
@@ -744,10 +502,147 @@
       saveCurrentData();
     }
 
-    // 點擊帳單清單以外的區域時，關閉所有滑動選單
+    function startDrag(e, id) {
+      if (isDragging) return;
+      if (e.touches && e.touches.length > 1) return;
+
+      closeAllSwipes(id);
+
+      isDragging = true;
+      currentDragId = id;
+      isDirectionLocked = false;
+
+      startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+      startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+      
+      const content = document.getElementById(`content-${id}`);
+      if (content) content.style.transition = 'none';
+
+      const moveHandler = (evt) => onDrag(evt, id);
+      const endHandler = (evt) => stopDrag(evt, id, moveHandler, endHandler);
+
+      window.addEventListener('mousemove', moveHandler);
+      window.addEventListener('touchmove', moveHandler, { passive: true });
+      window.addEventListener('mouseup', endHandler);
+      window.addEventListener('touchend', endHandler);
+    }
+
+    function onDrag(e, id) {
+      if (!isDragging || currentDragId !== id) return;
+
+      const currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+      const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+      
+      const deltaX = currentX - startX;
+      const deltaY = currentY - startY;
+
+      if (!isDirectionLocked) {
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+          isDragging = false;
+          currentDragId = null;
+          const content = document.getElementById(`content-${id}`);
+          if (content) {
+            content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
+            content.style.transform = 'translateX(0px)';
+          }
+          return;
+        }
+        if (Math.abs(deltaX) > 15) {
+          isDirectionLocked = true;
+        }
+      }
+
+      if (isDirectionLocked) {
+        const content = document.getElementById(`content-${id}`);
+        const leftActions = document.getElementById(`actions-left-${id}`);
+        const rightActions = document.getElementById(`actions-right-${id}`);
+
+        if (content) {
+          if (deltaX < 0) {
+            if (leftActions) leftActions.style.display = 'none';
+            if (rightActions) rightActions.style.display = 'flex';
+
+            if (deltaX > -140) {
+              content.style.transform = `translateX(${deltaX}px)`;
+            }
+          } else if (deltaX > 0) {
+            if (leftActions) leftActions.style.display = 'flex';
+            if (rightActions) rightActions.style.display = 'none';
+
+            if (deltaX < 85) {
+              content.style.transform = `translateX(${deltaX}px)`;
+            }
+          }
+        }
+      }
+    }
+
+    function stopDrag(e, id, moveHandler, endHandler) {
+      if (!isDragging || currentDragId !== id) {
+        window.removeEventListener('mousemove', moveHandler);
+        window.removeEventListener('touchmove', moveHandler);
+        window.removeEventListener('mouseup', endHandler);
+        window.removeEventListener('touchend', endHandler);
+        return;
+      }
+      
+      window.removeEventListener('mousemove', moveHandler);
+      window.removeEventListener('touchmove', moveHandler);
+      window.removeEventListener('mouseup', endHandler);
+      window.removeEventListener('touchend', endHandler);
+
+      const content = document.getElementById(`content-${id}`);
+      const leftActions = document.getElementById(`actions-left-${id}`);
+      const rightActions = document.getElementById(`actions-right-${id}`);
+
+      isDragging = false;
+      currentDragId = null;
+      isDirectionLocked = false;
+
+      if (!content) return;
+
+      content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
+
+      const endX = e.type.includes('touch') ? (e.changedTouches[0] ? e.changedTouches[0].clientX : startX) : e.clientX;
+      const deltaX = endX - startX;
+
+      if (deltaX < -75) {
+        if (leftActions) leftActions.style.display = 'none';
+        if (rightActions) rightActions.style.display = 'flex';
+        content.style.transform = 'translateX(-120px)';
+        activeSwipedElem = id;
+      } else if (deltaX > 75) {
+        if (leftActions) leftActions.style.display = 'flex';
+        if (rightActions) rightActions.style.display = 'none';
+        content.style.transform = 'translateX(70px)';
+        activeSwipedElem = id;
+      } else {
+        content.style.transform = 'translateX(0px)';
+        if (leftActions) leftActions.style.display = 'flex';
+        if (rightActions) rightActions.style.display = 'flex';
+        if (activeSwipedElem === id) activeSwipedElem = null;
+      }
+    }
+
+    function closeAllSwipes(exceptId = null) {
+      const allContents = document.querySelectorAll('.swipe-content');
+      allContents.forEach(content => {
+        const id = content.id.replace('content-', '');
+        const leftActions = document.getElementById(`actions-left-${id}`);
+        const rightActions = document.getElementById(`actions-right-${id}`);
+
+        if (id !== exceptId) {
+          content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
+          content.style.transform = 'translateX(0px)';
+          if (leftActions) leftActions.style.display = 'flex';
+          if (rightActions) rightActions.style.display = 'flex';
+        }
+      });
+      if (!exceptId) activeSwipedElem = null;
+    }
+
     window.addEventListener('click', (e) => {
       const container = e.target.closest('.swipe-container');
-
       if (!container) {
         closeAllSwipes();
       }
