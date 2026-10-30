@@ -300,6 +300,11 @@
         return { type: 'paid', text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
       }
 
+      // 「即將到期」已移除閃爍動畫 (animate-pulse)
+      if (!isPaid && (effectiveDueDay - effectiveToday <= 2)) {
+        return { type: 'expiring', text: '即將到期', class: 'bg-orange-500/15 text-orange-600 hover:bg-orange-500/25 cursor-pointer font-semibold', disabled: false };
+      }
+
       return { type: 'unpaid', text: '待繳費', class: 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 cursor-pointer font-semibold', disabled: false };
     }
 
@@ -327,16 +332,13 @@
         const label = document.getElementById(`stat-label-${f}`);
         const count = document.getElementById(`stat-${f === 'all' ? 'total' : f}`);
 
-        // 重置所有 Active Class
         card.classList.remove('stat-card-active-all', 'stat-card-active-unpaid', 'stat-card-active-paid', 'stat-card-active-overdue');
 
         if (f === filter) {
-          // 套用選中狀態的淺色背景與對應深色文字
           card.classList.add(`stat-card-active-${f}`);
           label.className = `text-[11px] ${activeTextColors[f]} mb-1 whitespace-nowrap`;
           count.className = `text-lg font-bold ${activeTextColors[f]}`;
         } else {
-          // 恢復未選中狀態
           label.className = 'text-[11px] text-slate-500 mb-1 whitespace-nowrap';
           count.className = `text-lg font-bold ${defaultTextColors[f]}`;
         }
@@ -355,7 +357,11 @@
         return a.statementDay - b.statementDay;
       });
 
-      const unpaidCount = itemsData.filter(c => getButtonConfig(c).type === 'unpaid').length;
+      const unpaidCount = itemsData.filter(c => {
+        const t = getButtonConfig(c).type;
+        return t === 'unpaid' || t === 'expiring';
+      }).length;
+      
       const paidCount = itemsData.filter(c => getButtonConfig(c).type === 'paid').length;
       const overdueCount = itemsData.filter(c => getButtonConfig(c).type === 'overdue').length;
 
@@ -365,7 +371,10 @@
       document.getElementById('stat-overdue').innerText = overdueCount;
 
       if (currentFilter === 'unpaid') {
-        data = data.filter(c => getButtonConfig(c).type === 'unpaid');
+        data = data.filter(c => {
+          const t = getButtonConfig(c).type;
+          return t === 'unpaid' || t === 'expiring';
+        });
       } else if (currentFilter === 'paid') {
         data = data.filter(c => getButtonConfig(c).type === 'paid');
       } else if (currentFilter === 'overdue') {
@@ -383,7 +392,7 @@
 
       if (data.length === 0) {
         let statusText = '';
-        if (currentFilter === 'unpaid') statusText = '待繳費';
+        if (currentFilter === 'unpaid') statusText = '待繳費（含即將到期）';
         else if (currentFilter === 'paid') statusText = '已繳費';
         else if (currentFilter === 'overdue') statusText = '已逾期';
 
@@ -477,7 +486,7 @@
         item.isForceUnbilled = true;
         item.isPaid = false;
         delete item.paidDate;
-      } else if (btnConfig.type === 'unpaid') {
+      } else if (btnConfig.type === 'unpaid' || btnConfig.type === 'expiring') {
         item.isPaid = true;
         item.isForceUnbilled = false;
         const nowObj = new Date();
