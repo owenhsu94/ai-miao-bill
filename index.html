@@ -176,7 +176,22 @@
     .action-btn-edit { background-color: #3b82f6; }
     .action-btn-delete { background-color: #ef4444; }
     .action-btn-pin { background-color: #cbd5e1; width: 56px; }
-    .action-btn-unpin { background-color: #cbd5e1; }
+    .action-btn-unpin { background-color: #64748b; }
+
+    /* 動作按鈕預設完全隱藏，只有滑動中或展開時才顯示，
+       避免 iOS 快速捲動 / 橡皮筋效果時圖層來不及繪製而露出紅藍按鈕 */
+    .swipe-actions-left,
+    .swipe-actions-right {
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.15s ease, visibility 0s linear 0.25s;
+    }
+    .swipe-container.show-right .swipe-actions-right,
+    .swipe-container.show-left .swipe-actions-left {
+      visibility: visible;
+      opacity: 1;
+      transition-delay: 0s;
+    }
   </style>
 </head>
 <body class="p-4 md:p-8 pb-12">
@@ -303,6 +318,15 @@
       const r = document.getElementById(`actions-right-${id}`);
       if (l) l.style.display = 'flex';
       if (r) r.style.display = 'flex';
+      const c = document.getElementById(`container-${id}`);
+      if (c) c.classList.remove('show-left', 'show-right');
+    }
+
+    function setActionSide(id, side) {
+      const c = document.getElementById(`container-${id}`);
+      if (!c) return;
+      c.classList.toggle('show-right', side === 'right');
+      c.classList.toggle('show-left', side === 'left');
     }
 
     function saveCurrentData() {
@@ -601,6 +625,7 @@
           if (deltaX < 0) {
             if (leftActions) leftActions.style.display = 'none';
             if (rightActions) rightActions.style.display = 'flex';
+            setActionSide(id, 'right');
 
             if (deltaX > -140) {
               content.style.transform = `translateX(${deltaX}px)`;
@@ -608,6 +633,7 @@
           } else if (deltaX > 0) {
             if (leftActions) leftActions.style.display = 'flex';
             if (rightActions) rightActions.style.display = 'none';
+            setActionSide(id, 'left');
 
             if (deltaX < 85) {
               content.style.transform = `translateX(${deltaX}px)`;
@@ -652,6 +678,7 @@
         content.style.transform = 'translateX(0px)';
         if (leftActions) leftActions.style.display = 'flex';
         if (rightActions) rightActions.style.display = 'flex';
+        setActionSide(id, null);
         if (activeSwipedElem === id) activeSwipedElem = null;
       }
     }
