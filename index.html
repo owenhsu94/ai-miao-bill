@@ -102,6 +102,7 @@
       border-radius: 1.5rem;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
       overflow: hidden;
+      isolation: isolate;
     }
 
     /* 滑動選單外殼 */
@@ -121,6 +122,10 @@
       background-color: #ffffff !important;
       cursor: grab;
       width: 100%;
+      /* 固定成獨立圖層，避免被外層 backdrop-filter 干擾 */
+      will-change: transform;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
     }
     .swipe-content:active {
       cursor: grabbing;
@@ -171,6 +176,7 @@
     .action-btn-edit { background-color: #3b82f6; }
     .action-btn-delete { background-color: #ef4444; }
     .action-btn-pin { background-color: #cbd5e1; width: 56px; }
+    .action-btn-unpin { background-color: #cbd5e1; }
   </style>
 </head>
 <body class="p-4 md:p-8 pb-12">
@@ -271,6 +277,34 @@
     let startY = 0;
     let isDirectionLocked = false;
 
+    // 統一管理 window 上的拖曳監聽器
+    let activeMove = null;
+    let activeEnd = null;
+
+    function cleanupDrag() {
+      if (activeMove) {
+        window.removeEventListener('mousemove', activeMove);
+        window.removeEventListener('touchmove', activeMove);
+      }
+      if (activeEnd) {
+        window.removeEventListener('mouseup', activeEnd);
+        window.removeEventListener('touchend', activeEnd);
+        window.removeEventListener('touchcancel', activeEnd);
+      }
+      activeMove = null;
+      activeEnd = null;
+      isDragging = false;
+      currentDragId = null;
+      isDirectionLocked = false;
+    }
+
+    function resetActionsDisplay(id) {
+      const l = document.getElementById(`actions-left-${id}`);
+      const r = document.getElementById(`actions-right-${id}`);
+      if (l) l.style.display = 'flex';
+      if (r) r.style.display = 'flex';
+    }
+
     function saveCurrentData() {
       localStorage.setItem('cards_account_v24', JSON.stringify(itemsData));
       render();
@@ -348,6 +382,10 @@
     }
 
     function render() {
+      // 重繪會重建所有 DOM，先清掉拖曳與展開狀態，避免與 DOM 不同步
+      cleanupDrag();
+      activeSwipedElem = null;
+
       const cardList = document.getElementById('card-list');
       let data = [...itemsData];
       
@@ -411,17 +449,15 @@
         const paidDateText = (isPaidStatus && item.paidDate) ? `已於 ${item.paidDate} 完成` : '';
         const isLast = index === data.length - 1;
 
-        const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs transform -rotate-45"></i></span>` : '';
+        // 已移除圖示上的 transform -rotate-45，避免 iOS 圖層合成問題
+        const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs"></i></span>` : '';
         const pinBtnText = item.isPinned ? '取消釘選' : '釘選';
-        
-        const pinBtnIconHtml = item.isPinned 
-          ? `<i class="fa-solid fa-thumbtack text-white text-base transform -rotate-45"></i>` 
-          : `<i class="fa-solid fa-thumbtack text-white text-base"></i>`;
+        const pinBtnIconHtml = `<i class="fa-solid fa-thumbtack text-white text-base"></i>`;
 
         return `
           <div class="swipe-container ${!isLast ? 'border-b border-slate-100/80' : ''}" id="container-${item.id}">
             <div class="swipe-actions-left" id="actions-left-${item.id}">
-              <button onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="${pinBtnText}">
+              <button onclick="togglePin('${item.id}')" class="action-btn action-btn-pin ${item.isPinned ? 'action-btn-unpin' : ''}" title="${pinBtnText}">
                 ${pinBtnIconHtml}
               </button>
             </div>
@@ -440,7 +476,7 @@
               <div class="flex items-center justify-between gap-3">
                 <!-- 左側：項目名稱與日期 -->
                 <div class="space-y-1 min-w-0 flex-1">
-                  <h3 class="text-base font-bold text-slate-800 truncate leading-snug flex items-center">
+                  <h3 class="text-base font-bold text-slate-800 truncate leading-snug flex items-center min-h-[1.5rem]">
                     ${pinIconHtml}<span class="truncate">${item.bankName}</span>
                   </h3>
                   <div class="text-xs text-slate-500 space-y-0.5">
@@ -503,8 +539,10 @@
     }
 
     function startDrag(e, id) {
-      if (isDragging) return;
       if (e.touches && e.touches.length > 1) return;
+
+      // 先清掉任何殘留的監聽器與狀態
+      cleanupDrag();
 
       closeAllSwipes(id);
 
@@ -518,13 +556,14 @@
       const content = document.getElementById(`content-${id}`);
       if (content) content.style.transition = 'none';
 
-      const moveHandler = (evt) => onDrag(evt, id);
-      const endHandler = (evt) => stopDrag(evt, id, moveHandler, endHandler);
+      activeMove = (evt) => onDrag(evt, id);
+      activeEnd = (evt) => stopDrag(evt, id);
 
-      window.addEventListener('mousemove', moveHandler);
-      window.addEventListener('touchmove', moveHandler, { passive: true });
-      window.addEventListener('mouseup', endHandler);
-      window.addEventListener('touchend', endHandler);
+      window.addEventListener('mousemove', activeMove);
+      window.addEventListener('touchmove', activeMove, { passive: true });
+      window.addEventListener('mouseup', activeEnd);
+      window.addEventListener('touchend', activeEnd);
+      window.addEventListener('touchcancel', activeEnd);
     }
 
     function onDrag(e, id) {
@@ -538,13 +577,14 @@
 
       if (!isDirectionLocked) {
         if (Math.abs(deltaY) > Math.abs(deltaX)) {
-          isDragging = false;
-          currentDragId = null;
+          // 判定為垂直捲動：還原位置與兩側按鈕，並清掉監聽器
           const content = document.getElementById(`content-${id}`);
           if (content) {
             content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
             content.style.transform = 'translateX(0px)';
           }
+          resetActionsDisplay(id);
+          cleanupDrag();
           return;
         }
         if (Math.abs(deltaX) > 15) {
@@ -577,33 +617,25 @@
       }
     }
 
-    function stopDrag(e, id, moveHandler, endHandler) {
-      if (!isDragging || currentDragId !== id) {
-        window.removeEventListener('mousemove', moveHandler);
-        window.removeEventListener('touchmove', moveHandler);
-        window.removeEventListener('mouseup', endHandler);
-        window.removeEventListener('touchend', endHandler);
-        return;
-      }
-      
-      window.removeEventListener('mousemove', moveHandler);
-      window.removeEventListener('touchmove', moveHandler);
-      window.removeEventListener('mouseup', endHandler);
-      window.removeEventListener('touchend', endHandler);
+    function stopDrag(e, id) {
+      const wasDragging = isDragging && currentDragId === id;
+      cleanupDrag();
+      if (!wasDragging) return;
 
       const content = document.getElementById(`content-${id}`);
       const leftActions = document.getElementById(`actions-left-${id}`);
       const rightActions = document.getElementById(`actions-right-${id}`);
 
-      isDragging = false;
-      currentDragId = null;
-      isDirectionLocked = false;
-
       if (!content) return;
 
       content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
 
-      const endX = e.type.includes('touch') ? (e.changedTouches[0] ? e.changedTouches[0].clientX : startX) : e.clientX;
+      let endX = startX;
+      if (e.type.includes('touch')) {
+        if (e.changedTouches && e.changedTouches[0]) endX = e.changedTouches[0].clientX;
+      } else {
+        endX = e.clientX;
+      }
       const deltaX = endX - startX;
 
       if (deltaX < -75) {
@@ -628,14 +660,11 @@
       const allContents = document.querySelectorAll('.swipe-content');
       allContents.forEach(content => {
         const id = content.id.replace('content-', '');
-        const leftActions = document.getElementById(`actions-left-${id}`);
-        const rightActions = document.getElementById(`actions-right-${id}`);
 
         if (id !== exceptId) {
           content.style.transition = 'transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)';
           content.style.transform = 'translateX(0px)';
-          if (leftActions) leftActions.style.display = 'flex';
-          if (rightActions) rightActions.style.display = 'flex';
+          resetActionsDisplay(id);
         }
       });
       if (!exceptId) activeSwipedElem = null;
