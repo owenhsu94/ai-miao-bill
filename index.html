@@ -140,13 +140,13 @@
       background-color: #ffffff;
     }
 
-    /* 右滑動作區塊（釘選） */
+    /* 右滑動作區塊（釘選 / 解除釘選） */
     .swipe-actions-left {
       position: absolute;
       top: 0;
       left: 0;
       bottom: 0;
-      width: 70px;
+      width: 80px;
       display: flex;
       align-items: center;
       justify-content: flex-start;
@@ -155,6 +155,7 @@
       background-color: #ffffff;
     }
 
+    /* 統一所有滑動操作按鈕的大小、陰影與圓角風格 */
     .action-btn {
       width: 48px;
       height: 72%;
@@ -162,14 +163,55 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1rem;
-      color: white;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      font-size: 0.95rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
-    .action-btn-edit { background-color: #3b82f6; }
-    .action-btn-delete { background-color: #ef4444; }
-    .action-btn-pin { background-color: #cbd5e1; width: 56px; }
-    .action-btn-unpin { background-color: #64748b; }
+
+    /* 編輯按鈕：柔和藍色系 */
+    .action-btn-edit { 
+      background-color: #eff6ff; 
+      color: #3b82f6; 
+    }
+    .action-btn-edit:hover {
+      background-color: #dbeafe;
+    }
+
+    /* 刪除按鈕：柔和紅色系 */
+    .action-btn-delete { 
+      background-color: #fef2f2; 
+      color: #ef4444; 
+    }
+    .action-btn-delete:hover {
+      background-color: #fee2e2;
+    }
+
+    .action-btn-pin { 
+      background-color: #f1f5f9; 
+      color: #334155; 
+      width: 48px; 
+      height: 72%;
+    }
+    .action-btn-pin:hover {
+      background-color: #e2e8f0;
+    }
+    
+    /* 調整解除釘選按鈕：縮小文字、淺色背景、深色字體以保持風格一致 */
+    .action-btn-unpin { 
+      background-color: #f1f5f9; 
+      width: 60px; 
+      height: 72%;
+      border-radius: 14px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .action-btn-unpin:hover {
+      background-color: #e2e8f0;
+    }
 
     /* 動作按鈕預設完全隱藏，只有滑動中或展開時才顯示 */
     .swipe-actions-left,
@@ -342,16 +384,15 @@
         dueDate = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
       }
 
-      // 當今日已經超過上一個當期的截止日，計算基準向後推進一個月
+      // 當今日已經超過當期的截止日，計算基準向後推進一個月
       if (today > dueDate) {
         stmtDate = new Date(now.getFullYear(), now.getMonth() + 1, statementDay);
         dueDate = new Date(now.getFullYear(), now.getMonth() + (dueDay < statementDay ? 2 : 1), dueDay);
       }
 
-      // 1. 已繳費狀態判斷
+      // 1. 已繳費狀態判斷：若已過截止日（或進入新週期），自動重置為「未出帳」
       if (isPaid) {
-        // 如果當前日期已經過結帳日，重置為「未出帳」準備迎接下一期
-        if (today > stmtDate) {
+        if (today > dueDate) {
           return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
         }
         return { type: 'paid', text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
@@ -485,22 +526,23 @@
         const isLast = index === data.length - 1;
 
         const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs"></i></span>` : '';
-        const pinBtnText = item.isPinned ? '取消釘選' : '釘選';
-        const pinBtnIconHtml = `<i class="fa-solid fa-thumbtack text-white text-base"></i>`;
+        
+        // 釘選顯示圖示，取消釘選顯示縮小的文字「Unpin」
+        const pinBtnHtml = item.isPinned 
+          ? `<button onclick="togglePin('${item.id}')" class="action-btn action-btn-unpin" title="Unpin">Unpin</button>`
+          : `<button onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="釘選"><i class="fa-solid fa-thumbtack text-slate-600 text-sm"></i></button>`;
 
         return `
           <div class="swipe-container ${!isLast ? 'border-b border-slate-100/80' : ''}" id="container-${item.id}">
             <div class="swipe-actions-left" id="actions-left-${item.id}">
-              <button onclick="togglePin('${item.id}')" class="action-btn action-btn-pin ${item.isPinned ? 'action-btn-unpin' : ''}" title="${pinBtnText}">
-                ${pinBtnIconHtml}
-              </button>
+              ${pinBtnHtml}
             </div>
             <div class="swipe-actions-right" id="actions-right-${item.id}">
               <button onclick="editCard('${item.id}')" class="action-btn action-btn-edit" title="編輯">
-                <i class="fa-solid fa-pen"></i>
+                <i class="fa-solid fa-pen text-sm"></i>
               </button>
               <button onclick="deleteCard('${item.id}')" class="action-btn action-btn-delete" title="刪除">
-                <i class="fa-solid fa-trash-can"></i>
+                <i class="fa-solid fa-trash-can text-sm"></i>
               </button>
             </div>
             <div class="swipe-content p-4" id="content-${item.id}"
@@ -677,7 +719,7 @@
       } else if (deltaX > 75) {
         if (leftActions) leftActions.style.display = 'flex';
         if (rightActions) rightActions.style.display = 'none';
-        content.style.transform = 'translateX(70px)';
+        content.style.transform = 'translateX(75px)';
         activeSwipedElem = id;
       } else {
         content.style.transform = 'translateX(0px)';
