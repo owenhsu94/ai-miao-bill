@@ -146,7 +146,7 @@
       top: 0;
       left: 0;
       bottom: 0;
-      width: 80px;
+      width: 68px;
       display: flex;
       align-items: center;
       justify-content: flex-start;
@@ -195,19 +195,22 @@
       background-color: #e2e8f0;
     }
     
-    /* 調整解除釘選按鈕：縮小文字、淺色背景、深色字體以保持風格一致 */
+    /* 調整解除釘選按鈕：寬度與釘選按鈕一致（48px），並將字體縮小至 0.6rem 避免破圖 */
     .action-btn-unpin { 
       background-color: #f1f5f9; 
-      width: 60px; 
+      width: 48px; 
       height: 72%;
       border-radius: 14px;
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: 0.6rem;
+      font-weight: 700;
       color: #334155;
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      padding: 0 2px;
+      text-align: center;
+      line-height: 1.1;
     }
     .action-btn-unpin:hover {
       background-color: #e2e8f0;
@@ -527,7 +530,7 @@
 
         const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs"></i></span>` : '';
         
-        // 釘選顯示圖示，取消釘選顯示縮小的文字「Unpin」
+        // 釘選顯示圖示，取消釘選顯示縮小字體的「Unpin」
         const pinBtnHtml = item.isPinned 
           ? `<button onclick="togglePin('${item.id}')" class="action-btn action-btn-unpin" title="Unpin">Unpin</button>`
           : `<button onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="釘選"><i class="fa-solid fa-thumbtack text-slate-600 text-sm"></i></button>`;
@@ -682,7 +685,7 @@
             if (rightActions) rightActions.style.display = 'none';
             setActionSide(id, 'left');
 
-            if (deltaX < 85) {
+            if (deltaX < 70) {
               content.style.transform = `translateX(${deltaX}px)`;
             }
           }
@@ -716,10 +719,10 @@
         if (rightActions) rightActions.style.display = 'flex';
         content.style.transform = 'translateX(-120px)';
         activeSwipedElem = id;
-      } else if (deltaX > 75) {
+      } else if (deltaX > 60) {
         if (leftActions) leftActions.style.display = 'flex';
         if (rightActions) rightActions.style.display = 'none';
-        content.style.transform = 'translateX(75px)';
+        content.style.transform = 'translateX(60px)';
         activeSwipedElem = id;
       } else {
         content.style.transform = 'translateX(0px)';
