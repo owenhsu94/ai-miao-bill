@@ -401,9 +401,9 @@
         return { type: 'paid', text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
       }
 
-      // 2. 系統日 > 截止日，且未繳費 => 依照需求顯示為「未出帳」
+      // 2. 系統日 > 截止日，且未繳費 => 顯示為「已逾期」（直到使用者點擊才變未出帳）
       if (today > dueDate) {
-        return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
+        return { type: 'overdue', text: '已逾期', class: 'bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 cursor-pointer font-semibold', disabled: false };
       }
 
       // 3. 系統日 <= 結帳日 => 未出帳
@@ -596,6 +596,7 @@
       const btnConfig = getButtonConfig(item);
 
       if (btnConfig.type === 'overdue') {
+        // 使用者點擊已逾期後，才會變成未出帳（設定 force unbilled）
         item.isForceUnbilled = true;
         item.isPaid = false;
         delete item.paidDate;
