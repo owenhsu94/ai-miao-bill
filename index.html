@@ -223,9 +223,6 @@
     <!-- 頂部區塊 -->
     <div class="flex items-center justify-between px-2 py-1">
       <div class="flex items-center space-x-2.5">
-        <div class="w-9 h-9 rounded-2xl bg-amber-100/80 border border-amber-300/60 flex items-center justify-center text-amber-500 shadow-sm">
-          <i class="fa-solid fa-egg text-lg"></i>
-        </div>
         <h1 class="text-xl tiktok-text">AI喵喵系統</h1>
       </div>
       <button onclick="openModal()" class="glass-button-primary text-sm font-medium px-4 py-2 rounded-2xl flex items-center space-x-2 transition-all">
@@ -288,6 +285,21 @@
             <label class="block text-xs text-slate-600 mb-1">每期繳款截止日</label>
             <input type="number" id="due-day" min="1" max="31" inputmode="numeric" required placeholder="1 - 31" class="w-full glass-input rounded-xl px-4 py-2.5">
           </div>
+        </div>
+
+        <!-- 帳單狀態欄位 -->
+        <div>
+          <label class="block text-xs text-slate-600 mb-1">帳單狀態</label>
+          <select id="card-status" class="w-full glass-input rounded-xl px-4 py-2.5">
+            <option value="unbilled">未出帳</option>
+            <option value="unpaid">待繳費</option>
+            <option value="paid">已繳費</option>
+          </select>
+        </div>
+
+        <!-- 編輯日期資訊顯示區塊 -->
+        <div id="modal-date-info" class="text-xs text-slate-400 pt-1 hidden">
+          最後編輯日期：<span id="modal-updated-date"></span>
         </div>
 
         <div class="pt-2 flex justify-end space-x-3">
@@ -355,44 +367,46 @@
       render();
     }
 
-    function getButtonConfig(item) {
+    // 計算當前週期物件 (修正：完全依據項目的狀態/屬性來推算正確的月份)
+    function getCycleDates(item) {
       const { statementDay, dueDay, isPaid, isForceUnbilled } = item;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      // 手動標記未出帳
+      // 如果明確指定為未出帳 (isForceUnbilled)，強制抓未來的未出帳週期
+      if (isForceUnbilled) {
+        let stmtDate = new Date(now.getFullYear(), now.getMonth(), statementDay);
+        if (today > stmtDate) {
+          stmtDate = new Date(now.getFullYear(), now.getMonth() + 1, statementDay);
+        }
+        let dueDate = new Date(stmtDate.getFullYear(), stmtDate.getMonth() + (dueDay < statementDay ? 1 : 0), dueDay);
+        return { stmtDate, dueDate };
+      }
+
+      // 如果是待繳費或已繳費，強制抓「當前正在進行繳費」的那一期週期
+      let stmtDate = new Date(now.getFullYear(), now.getMonth(), statementDay);
+      let dueDate = new Date(stmtDate.getFullYear(), stmtDate.getMonth() + (dueDay < statementDay ? 1 : 0), dueDay);
+
+      // 如果今天的日期小於等於當月的結帳日，代表當前要繳的是上個月結帳的那一期
+      if (today <= stmtDate) {
+        stmtDate = new Date(now.getFullYear(), now.getMonth() - 1, statementDay);
+        dueDate = new Date(stmtDate.getFullYear(), stmtDate.getMonth() + (dueDay < statementDay ? 1 : 0), dueDay);
+      }
+
+      return { stmtDate, dueDate };
+    }
+
+    function getButtonConfig(item) {
+      const { isPaid, isForceUnbilled, statementDay, dueDay } = item;
+
       if (isForceUnbilled) {
         return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
       }
 
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const { stmtDate, dueDate } = getCycleDates(item);
 
-      // 修正後的週期推導邏輯：
-      // 我們以當前月份為基準，建立「本週期的結帳日」與「本週期的截止日」
-      let stmtDate = new Date(now.getFullYear(), now.getMonth(), statementDay);
-      let dueDate = new Date(now.getFullYear(), now.getMonth(), dueDay);
-      if (dueDay < statementDay) {
-        dueDate = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
-      }
-
-      // 判斷當前日期是否已經超過了「本週期的截止日」
-      // 如果 today > dueDate，代表本期已經過期或結束，我們要將檢查基準往後推一個週期
-      if (today > dueDate) {
-        stmtDate = new Date(now.getFullYear(), now.getMonth() + 1, statementDay);
-        dueDate = new Date(now.getFullYear(), now.getMonth() + (dueDay < statementDay ? 2 : 1), dueDay);
-      } else {
-        // 如果 today 還沒有超過本週期的截止日，
-        // 那麼真正對應「正在繳費中的這一期」，其實它的結帳日是在上個月！
-        stmtDate = new Date(now.getFullYear(), now.getMonth() - 1, statementDay);
-        // 而它的截止日就是我們上面算出來的 dueDate（或對應上個月推導的截止日）
-        let prevStmtMonth = now.getMonth() - 1;
-        let prevStmtYear = now.getFullYear();
-        dueDate = new Date(prevStmtYear, prevStmtMonth, dueDay);
-        if (dueDay < statementDay) {
-          dueDate = new Date(prevStmtYear, prevStmtMonth + 1, dueDay);
-        }
-      }
-
-      // 1. 已繳費狀態判斷：若已過此繳費區間的截止日，自動重置為「未出帳」
       if (isPaid) {
         if (today > dueDate) {
           return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
@@ -400,17 +414,14 @@
         return { type: 'paid', text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
       }
 
-      // 2. 系統日 > 截止日，且未繳費 => 顯示為「已逾期」
       if (today > dueDate) {
         return { type: 'overdue', text: '已逾期', class: 'bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 cursor-pointer font-semibold', disabled: false };
       }
 
-      // 3. 系統日 <= 結帳日 => 未出帳
       if (today <= stmtDate) {
         return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
       }
 
-      // 4. 系統日在結帳日與截止日之間
       const diffTime = dueDate.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -522,7 +533,16 @@
 
       const listItemsHtml = data.map((item, index) => {
         const btn = getButtonConfig(item);
-        const dueText = item.dueDay <= item.statementDay ? `次月${item.dueDay}日` : `每月 ${item.dueDay} 日`;
+        const { stmtDate, dueDate } = getCycleDates(item);
+        
+        const stmtMonth = String(stmtDate.getMonth() + 1).padStart(2, '0');
+        const stmtDayFormatted = String(stmtDate.getDate()).padStart(2, '0');
+        const dueMonth = String(dueDate.getMonth() + 1).padStart(2, '0');
+        const dueDayFormatted = String(dueDate.getDate()).padStart(2, '0');
+
+        const stmtText = `${stmtMonth}/${stmtDayFormatted}`;
+        const dueText = `${dueMonth}/${dueDayFormatted}`;
+
         const isPaidStatus = btn.type === 'paid';
         const paidDateText = (isPaidStatus && item.paidDate) ? `已於 ${item.paidDate} 完成` : '';
         const isLast = index === data.length - 1;
@@ -556,7 +576,7 @@
                     ${pinIconHtml}<span class="truncate">${item.bankName}</span>
                   </h3>
                   <div class="text-xs text-slate-500 space-y-0.5">
-                    <div>結帳日：<span class="font-semibold text-slate-700">每月 ${item.statementDay} 日</span></div>
+                    <div>結帳日：<span class="font-semibold text-slate-700">${stmtText}</span></div>
                     <div>繳款截止日：<span class="font-semibold text-slate-700">${dueText}</span></div>
                   </div>
                 </div>
@@ -750,10 +770,22 @@
       }
     });
 
+    function formatDate(date) {
+      const d = new Date(date);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}/${month}/${day}`;
+    }
+
     function openModal(editId = null) {
       closeAllSwipes();
       document.getElementById('modal').classList.remove('hidden');
       
+      const dateInfoDiv = document.getElementById('modal-date-info');
+      const updatedDateSpan = document.getElementById('modal-updated-date');
+      const statusSelect = document.getElementById('card-status');
+
       if (editId) {
         const item = itemsData.find(c => c.id === editId);
         document.getElementById('modal-title').innerText = '編輯帳單';
@@ -761,10 +793,25 @@
         document.getElementById('bank-name').value = item.bankName;
         document.getElementById('statement-day').value = item.statementDay;
         document.getElementById('due-day').value = item.dueDay;
+
+        const btnCfg = getButtonConfig(item);
+        if (item.isPaid) {
+          statusSelect.value = 'paid';
+        } else if (item.isForceUnbilled || btnCfg.type === 'unbilled') {
+          statusSelect.value = 'unbilled';
+        } else {
+          statusSelect.value = 'unpaid';
+        }
+
+        const recordDate = item.updatedAt || item.createdAt || Number(item.id);
+        updatedDateSpan.innerText = formatDate(recordDate);
+        dateInfoDiv.classList.remove('hidden');
       } else {
         document.getElementById('modal-title').innerText = '新增帳單';
         document.getElementById('card-form').reset();
         document.getElementById('card-id').value = '';
+        statusSelect.value = 'unbilled';
+        dateInfoDiv.classList.add('hidden');
       }
     }
 
@@ -780,12 +827,48 @@
       const bankName = document.getElementById('bank-name').value.trim();
       const statementDay = parseInt(document.getElementById('statement-day').value);
       const dueDay = parseInt(document.getElementById('due-day').value);
+      const statusValue = document.getElementById('card-status').value;
+      const nowTimestamp = Date.now();
+
+      let isPaid = false;
+      let isForceUnbilled = false;
+      let paidDate = undefined;
+
+      if (statusValue === 'paid') {
+        isPaid = true;
+        const nowObj = new Date();
+        const mm = String(nowObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(nowObj.getDate()).padStart(2, '0');
+        paidDate = `${mm}/${dd}`;
+      } else if (statusValue === 'unbilled') {
+        isForceUnbilled = true;
+      }
 
       if (id) {
         const index = itemsData.findIndex(c => c.id === id);
-        itemsData[index] = { ...itemsData[index], bankName, statementDay, dueDay, isForceUnbilled: false };
+        itemsData[index] = { 
+          ...itemsData[index], 
+          bankName, 
+          statementDay, 
+          dueDay, 
+          isPaid,
+          isForceUnbilled,
+          paidDate,
+          updatedAt: nowTimestamp 
+        };
       } else {
-        itemsData.push({ id: Date.now().toString(), bankName, statementDay, dueDay, isPaid: false, isForceUnbilled: false, isPinned: false });
+        itemsData.push({ 
+          id: nowTimestamp.toString(), 
+          bankName, 
+          statementDay, 
+          dueDay, 
+          isPaid, 
+          isForceUnbilled, 
+          paidDate,
+          isPinned: false,
+          createdAt: nowTimestamp,
+          updatedAt: nowTimestamp 
+        });
       }
 
       saveCurrentData();
