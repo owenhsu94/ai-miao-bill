@@ -59,7 +59,6 @@
       box-shadow: 0 6px 20px 0 rgba(31, 38, 135, 0.12);
     }
 
-    /* TikTok 經典紅藍靜態錯位效果（無動畫） */
     .tiktok-text {
       color: #000000;
       position: relative;
@@ -80,7 +79,6 @@
       background: rgba(255, 255, 255, 0.9);
     }
 
-    /* 對應按鈕狀態與 tag 的淺色系選中樣式 */
     .stat-card-active-all {
       background: rgba(59, 130, 246, 0.15) !important;
     }
@@ -94,7 +92,6 @@
       background: rgba(244, 63, 94, 0.15) !important;
     }
 
-    /* 單一列表容器外殼 */
     .list-wrapper {
       background: #ffffff;
       border-radius: 1.5rem;
@@ -102,7 +99,6 @@
       overflow: hidden;
     }
 
-    /* 滑動選單外殼 */
     .swipe-container {
       position: relative;
       overflow: hidden;
@@ -124,7 +120,6 @@
       cursor: grabbing;
     }
 
-    /* 左滑動作區塊（編輯、刪除） */
     .swipe-actions-right {
       position: absolute;
       top: 0;
@@ -140,7 +135,6 @@
       background-color: #ffffff;
     }
 
-    /* 右滑動作區塊（釘選 / 解除釘選） */
     .swipe-actions-left {
       position: absolute;
       top: 0;
@@ -155,7 +149,6 @@
       background-color: #ffffff;
     }
 
-    /* 統一所有滑動操作按鈕的大小、陰影與圓角風格 */
     .action-btn {
       width: 48px;
       height: 72%;
@@ -167,7 +160,6 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
-    /* 編輯按鈕：柔和藍色系 */
     .action-btn-edit { 
       background-color: #eff6ff; 
       color: #3b82f6; 
@@ -176,7 +168,6 @@
       background-color: #dbeafe;
     }
 
-    /* 刪除按鈕：柔和紅色系 */
     .action-btn-delete { 
       background-color: #fef2f2; 
       color: #ef4444; 
@@ -195,7 +186,6 @@
       background-color: #e2e8f0;
     }
     
-    /* 調整解除釘選按鈕：寬度與釘選按鈕一致（48px），並將字體縮小至 0.6rem 避免破圖 */
     .action-btn-unpin { 
       background-color: #f1f5f9; 
       width: 48px; 
@@ -216,7 +206,6 @@
       background-color: #e2e8f0;
     }
 
-    /* 動作按鈕預設完全隱藏，只有滑動中或展開時才顯示 */
     .swipe-actions-left,
     .swipe-actions-right {
       display: none;
@@ -321,7 +310,6 @@
     let startY = 0;
     let isDirectionLocked = false;
 
-    // 統一管理 window 上的拖曳監聽器
     let activeMove = null;
     let activeEnd = null;
 
@@ -375,25 +363,36 @@
         return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
       }
 
-      // 計算當前精準的 Date 物件進行邏輯判斷
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      
+
+      // 修正後的週期推導邏輯：
+      // 我們以當前月份為基準，建立「本週期的結帳日」與「本週期的截止日」
       let stmtDate = new Date(now.getFullYear(), now.getMonth(), statementDay);
       let dueDate = new Date(now.getFullYear(), now.getMonth(), dueDay);
-
-      // 若截止日數字小於結帳日，代表截止日落在次月
       if (dueDay < statementDay) {
         dueDate = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
       }
 
-      // 當今日已經超過當期的截止日，計算基準向後推進一個月
+      // 判斷當前日期是否已經超過了「本週期的截止日」
+      // 如果 today > dueDate，代表本期已經過期或結束，我們要將檢查基準往後推一個週期
       if (today > dueDate) {
         stmtDate = new Date(now.getFullYear(), now.getMonth() + 1, statementDay);
         dueDate = new Date(now.getFullYear(), now.getMonth() + (dueDay < statementDay ? 2 : 1), dueDay);
+      } else {
+        // 如果 today 還沒有超過本週期的截止日，
+        // 那麼真正對應「正在繳費中的這一期」，其實它的結帳日是在上個月！
+        stmtDate = new Date(now.getFullYear(), now.getMonth() - 1, statementDay);
+        // 而它的截止日就是我們上面算出來的 dueDate（或對應上個月推導的截止日）
+        let prevStmtMonth = now.getMonth() - 1;
+        let prevStmtYear = now.getFullYear();
+        dueDate = new Date(prevStmtYear, prevStmtMonth, dueDay);
+        if (dueDay < statementDay) {
+          dueDate = new Date(prevStmtYear, prevStmtMonth + 1, dueDay);
+        }
       }
 
-      // 1. 已繳費狀態判斷：若已過截止日（或進入新週期），自動重置為「未出帳」
+      // 1. 已繳費狀態判斷：若已過此繳費區間的截止日，自動重置為「未出帳」
       if (isPaid) {
         if (today > dueDate) {
           return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
@@ -401,7 +400,7 @@
         return { type: 'paid', text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
       }
 
-      // 2. 系統日 > 截止日，且未繳費 => 顯示為「已逾期」（直到使用者點擊才變未出帳）
+      // 2. 系統日 > 截止日，且未繳費 => 顯示為「已逾期」
       if (today > dueDate) {
         return { type: 'overdue', text: '已逾期', class: 'bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 cursor-pointer font-semibold', disabled: false };
       }
@@ -530,7 +529,6 @@
 
         const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs"></i></span>` : '';
         
-        // 釘選顯示圖示，取消釘選顯示縮小字體的「Unpin」
         const pinBtnHtml = item.isPinned 
           ? `<button onclick="togglePin('${item.id}')" class="action-btn action-btn-unpin" title="Unpin">Unpin</button>`
           : `<button onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="釘選"><i class="fa-solid fa-thumbtack text-slate-600 text-sm"></i></button>`;
@@ -596,7 +594,6 @@
       const btnConfig = getButtonConfig(item);
 
       if (btnConfig.type === 'overdue') {
-        // 使用者點擊已逾期後，才會變成未出帳（設定 force unbilled）
         item.isForceUnbilled = true;
         item.isPaid = false;
         delete item.paidDate;
