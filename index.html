@@ -259,7 +259,7 @@
     <div id="card-list"></div>
 
     <!-- 版本資訊 -->
-    <div class="text-center text-xs text-slate-400 pt-2">版本資訊 2026110206<br>Copyright © W. W. HSU 2026. All rights reserved.</div>
+    <div class="text-center text-xs text-slate-400 pt-2">版本資訊 26110207<br>Copyright © W. W. HSU 2026. All rights reserved.</div>
 
   </div>
 
@@ -483,7 +483,10 @@
       data.sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
-        return a.statementDay - b.statementDay;
+        // 第二優先：依結帳日（stmtDate）的月份和日期由近到遠（升冪排序）
+        const dateA = getCycleDates(a).stmtDate;
+        const dateB = getCycleDates(b).stmtDate;
+        return dateA - dateB;
       });
 
       const unpaidCount = itemsData.filter(c => {
@@ -578,8 +581,8 @@
                     ${pinIconHtml}<span class="truncate">${item.bankName}</span>
                   </h3>
                   <div class="text-xs text-slate-500 space-y-0.5">
-                    <div>結帳日：<span class="font-semibold text-slate-700">${stmtText}</span></div>
-                    <div>繳款截止日：<span class="font-semibold text-slate-700">${dueText}</span></div>
+                    <div>結帳日 ${stmtText}</div>
+                    <div>繳款截止日 ${dueText}</div>
                   </div>
                 </div>
 
@@ -869,30 +872,30 @@
       }
 
       if (id) {
-        const index = itemsData.findIndex(c => c.id === id);
-        itemsData[index] = { 
-          ...itemsData[index], 
-          bankName, 
-          statementDay, 
-          dueDay, 
+        const item = itemsData.find(c => c.id === id);
+        if (item) {
+          item.bankName = bankName;
+          item.statementDay = statementDay;
+          item.dueDay = dueDay;
+          item.isPaid = isPaid;
+          item.isForceUnbilled = isForceUnbilled;
+          if (paidDate) item.paidDate = paidDate;
+          else delete item.paidDate;
+          item.updatedAt = nowTimestamp;
+        }
+      } else {
+        const newItem = {
+          id: String(nowTimestamp),
+          bankName,
+          statementDay,
+          dueDay,
           isPaid,
           isForceUnbilled,
           paidDate,
-          updatedAt: nowTimestamp 
-        };
-      } else {
-        itemsData.push({ 
-          id: nowTimestamp.toString(), 
-          bankName, 
-          statementDay, 
-          dueDay, 
-          isPaid, 
-          isForceUnbilled, 
-          paidDate,
           isPinned: false,
-          createdAt: nowTimestamp,
-          updatedAt: nowTimestamp 
-        });
+          createdAt: nowTimestamp
+        };
+        itemsData.push(newItem);
       }
 
       saveCurrentData();
@@ -904,7 +907,8 @@
     }
 
     function deleteCard(id) {
-      if (confirm('確定要刪除這筆帳單資料嗎？')) {
+      closeAllSwipes();
+      if (confirm('確定要刪除這筆帳單嗎？')) {
         itemsData = itemsData.filter(c => c.id !== id);
         saveCurrentData();
       }
