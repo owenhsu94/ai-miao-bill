@@ -259,7 +259,7 @@
     <div id="card-list"></div>
 
     <!-- 版本資訊 -->
-    <div class="text-center text-xs text-slate-400 pt-2">版本資訊 2026110203<br>Copyright © W. W. HSU 2026. All rights reserved.</div>
+    <div class="text-center text-xs text-slate-400 pt-2">版本資訊 2026110206<br>Copyright © W. W. HSU 2026. All rights reserved.</div>
 
   </div>
 
@@ -551,7 +551,6 @@
 
         const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs"></i></span>` : '';
         
-        // 針對 iOS 點擊優化：使用 ontouchend 1次觸發
         const pinBtnHtml = item.isPinned 
           ? `<button ontouchend="togglePin('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="togglePin('${item.id}')" class="action-btn action-btn-unpin" title="Unpin">Unpin</button>`
           : `<button ontouchend="togglePin('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="釘選"><i class="fa-solid fa-thumbtack text-slate-600 text-sm"></i></button>`;
@@ -585,7 +584,7 @@
                 </div>
 
                 <div class="w-[110px] flex-shrink-0 flex flex-col items-center justify-center space-y-1 text-center">
-                  <button ${btn.disabled ? '' : `ontouchend="handleBtnClick('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="handleBtnClick('${item.id}')"`} class="w-[90px] mx-auto py-1.5 rounded-xl text-xs transition-all ${btn.class}">
+                  <button ${btn.disabled ? '' : `ontouchend="handleBtnClickWithCheck('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="handleBtnClickWithCheck('${item.id}')"`} class="w-[90px] mx-auto py-1.5 rounded-xl text-xs transition-all ${btn.class}">
                     ${btn.text}
                   </button>
                   ${paidDateText ? `<span class="text-[10px] text-emerald-600 font-medium w-full block whitespace-nowrap">${paidDateText}</span>` : ''}
@@ -598,6 +597,28 @@
       }).join('');
 
       cardList.innerHTML = `<div class="list-wrapper">${listItemsHtml}</div>`;
+    }
+
+    // 新增：檢查卡片是否處於滑動/展開狀態，若是則狀態按鈕點擊無效
+    function handleBtnClickWithCheck(id) {
+      const container = document.getElementById(`container-${id}`);
+      const content = document.getElementById(`content-${id}`);
+      
+      if (!container || !content) return;
+
+      // 檢查是否含有 show-left 或 show-right 類別，或是 transform 位移不為 0（代表滑動或展開狀態）
+      const isShowLeft = container.classList.contains('show-left');
+      const isShowRight = container.classList.contains('show-right');
+      const transformValue = content.style.transform;
+      const isTranslated = transformValue && transformValue !== 'translateX(0px)' && transformValue !== 'none';
+
+      if (isShowLeft || isShowRight || isTranslated) {
+        // 卡片處於滑動或展開狀態，直接中斷不執行狀態切換
+        return;
+      }
+
+      // 若卡片為未滑動狀態，正常執行原本的切換邏輯
+      handleBtnClick(id);
     }
 
     function togglePin(id) {
