@@ -259,7 +259,7 @@
     <div id="card-list"></div>
 
     <!-- 版本資訊 -->
-    <div class="text-center text-xs text-slate-400 pt-2">版本資訊 2026110203<br>Copyright © W. W. HSU 2026. All rights reserved.</div>
+    <div class="text-center text-xs text-slate-400 pt-2">版本資訊 2026110204<br>Copyright © W. W. HSU 2026. All rights reserved.</div>
 
   </div>
 
@@ -322,6 +322,7 @@
 
     let activeSwipedElem = null;
     let isDragging = false;
+    let hasDragged = false; // 新增：用於防誤觸判斷
     let currentDragId = null;
     let startX = 0;
     let startY = 0;
@@ -551,10 +552,9 @@
 
         const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs"></i></span>` : '';
         
-        // 針對 iOS 點擊優化：使用 ontouchend 1次觸發
         const pinBtnHtml = item.isPinned 
-          ? `<button ontouchend="togglePin('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="togglePin('${item.id}')" class="action-btn action-btn-unpin" title="Unpin">Unpin</button>`
-          : `<button ontouchend="togglePin('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="釘選"><i class="fa-solid fa-thumbtack text-slate-600 text-sm"></i></button>`;
+          ? `<button ontouchend="if(!hasDragged){ togglePin('${item.id}'); } event.stopPropagation();" onclick="if(!hasDragged){ togglePin('${item.id}'); }" class="action-btn action-btn-unpin" title="Unpin">Unpin</button>`
+          : `<button ontouchend="if(!hasDragged){ togglePin('${item.id}'); } event.stopPropagation();" onclick="if(!hasDragged){ togglePin('${item.id}'); }" class="action-btn action-btn-pin" title="釘選"><i class="fa-solid fa-thumbtack text-slate-600 text-sm"></i></button>`;
 
         return `
           <div class="swipe-container ${!isLast ? 'border-b border-slate-100/80' : ''}" id="container-${item.id}">
@@ -562,10 +562,10 @@
               ${pinBtnHtml}
             </div>
             <div class="swipe-actions-right" id="actions-right-${item.id}">
-              <button ontouchend="editCard('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="editCard('${item.id}')" class="action-btn action-btn-edit" title="編輯">
+              <button ontouchend="if(!hasDragged){ editCard('${item.id}'); } event.stopPropagation();" onclick="if(!hasDragged){ editCard('${item.id}'); }" class="action-btn action-btn-edit" title="編輯">
                 <i class="fa-solid fa-pen text-sm"></i>
               </button>
-              <button ontouchend="deleteCard('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="deleteCard('${item.id}')" class="action-btn action-btn-delete" title="刪除">
+              <button ontouchend="if(!hasDragged){ deleteCard('${item.id}'); } event.stopPropagation();" onclick="if(!hasDragged){ deleteCard('${item.id}'); }" class="action-btn action-btn-delete" title="刪除">
                 <i class="fa-solid fa-trash-can text-sm"></i>
               </button>
             </div>
@@ -585,7 +585,7 @@
                 </div>
 
                 <div class="w-[110px] flex-shrink-0 flex flex-col items-center justify-center space-y-1 text-center">
-                  <button ${btn.disabled ? '' : `ontouchend="handleBtnClick('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="handleBtnClick('${item.id}')"`} class="w-[90px] mx-auto py-1.5 rounded-xl text-xs transition-all ${btn.class}">
+                  <button ${btn.disabled ? '' : `ontouchend="if(!hasDragged){ handleBtnClick('${item.id}'); } event.stopPropagation();" onclick="if(!hasDragged){ handleBtnClick('${item.id}'); }"`} class="w-[90px] mx-auto py-1.5 rounded-xl text-xs transition-all ${btn.class}">
                     ${btn.text}
                   </button>
                   ${paidDateText ? `<span class="text-[10px] text-emerald-600 font-medium w-full block whitespace-nowrap">${paidDateText}</span>` : ''}
@@ -643,6 +643,7 @@
       closeAllSwipes(id);
 
       isDragging = true;
+      hasDragged = false; // 按下時重置標記
       currentDragId = id;
       isDirectionLocked = false;
 
@@ -670,6 +671,11 @@
       
       const deltaX = currentX - startX;
       const deltaY = currentY - startY;
+
+      // 當水平或垂直移動超過 10px 時，判定為滑動動作，關閉按鈕點擊
+      if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+        hasDragged = true;
+      }
 
       if (!isDirectionLocked) {
         if (Math.abs(deltaY) > Math.abs(deltaX)) {
