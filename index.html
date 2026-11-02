@@ -259,7 +259,7 @@
     <div id="card-list"></div>
 
     <!-- 版本資訊 -->
-    <div class="text-center text-xs text-slate-400 pt-2">版本資訊 26110207<br>Copyright © W. W. HSU 2026. All rights reserved.</div>
+    <div class="text-center text-xs text-slate-400 pt-2">版本資訊 26110208<br>Copyright © W. W. HSU 2026. All rights reserved.</div>
 
   </div>
 
@@ -298,13 +298,12 @@
           <select id="card-status" class="w-full glass-input rounded-xl px-4 py-2.5">
             <option value="unbilled">未出帳</option>
             <option value="unpaid">待繳費</option>
-            <option value="paid">已繳費</option>
           </select>
         </div>
 
         <!-- 編輯日期資訊顯示區塊 -->
         <div id="modal-date-info" class="text-xs text-slate-400 pt-1 hidden">
-          最後編輯日期：<span id="modal-updated-date"></span>
+          最後編輯日期 <span id="modal-updated-date"></span>
         </div>
 
         <div class="pt-2 flex justify-end space-x-3">
@@ -822,9 +821,7 @@
         document.getElementById('due-day').value = item.dueDay;
 
         const btnCfg = getButtonConfig(item);
-        if (item.isPaid) {
-          statusSelect.value = 'paid';
-        } else if (item.isForceUnbilled || btnCfg.type === 'unbilled') {
+        if (item.isForceUnbilled || btnCfg.type === 'unbilled') {
           statusSelect.value = 'unbilled';
         } else {
           statusSelect.value = 'unpaid';
@@ -857,19 +854,7 @@
       const statusValue = document.getElementById('card-status').value;
       const nowTimestamp = Date.now();
 
-      let isPaid = false;
-      let isForceUnbilled = false;
-      let paidDate = undefined;
-
-      if (statusValue === 'paid') {
-        isPaid = true;
-        const nowObj = new Date();
-        const mm = String(nowObj.getMonth() + 1).padStart(2, '0');
-        const dd = String(nowObj.getDate()).padStart(2, '0');
-        paidDate = `${mm}/${dd}`;
-      } else if (statusValue === 'unbilled') {
-        isForceUnbilled = true;
-      }
+      let isForceUnbilled = (statusValue === 'unbilled');
 
       if (id) {
         const item = itemsData.find(c => c.id === id);
@@ -877,10 +862,7 @@
           item.bankName = bankName;
           item.statementDay = statementDay;
           item.dueDay = dueDay;
-          item.isPaid = isPaid;
           item.isForceUnbilled = isForceUnbilled;
-          if (paidDate) item.paidDate = paidDate;
-          else delete item.paidDate;
           item.updatedAt = nowTimestamp;
         }
       } else {
@@ -889,9 +871,8 @@
           bankName,
           statementDay,
           dueDay,
-          isPaid,
+          isPaid: false,
           isForceUnbilled,
-          paidDate,
           isPinned: false,
           createdAt: nowTimestamp
         };
