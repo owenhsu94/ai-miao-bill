@@ -158,6 +158,7 @@
       justify-content: center;
       font-size: 0.95rem;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      -webkit-tap-highlight-color: transparent;
     }
 
     .action-btn-edit { 
@@ -201,6 +202,7 @@
       padding: 0 2px;
       text-align: center;
       line-height: 1.1;
+      -webkit-tap-highlight-color: transparent;
     }
     .action-btn-unpin:hover {
       background-color: #e2e8f0;
@@ -255,6 +257,9 @@
 
     <!-- 清單容器 -->
     <div id="card-list"></div>
+
+    <!-- 版本資訊 -->
+    <div class="text-center text-xs text-slate-400 pt-2">版本資訊 2026110201</div>
 
   </div>
 
@@ -367,13 +372,12 @@
       render();
     }
 
-    // 計算當前週期物件 (修正：完全依據項目的狀態/屬性來推算正確的月份)
+    // 計算當前週期物件
     function getCycleDates(item) {
       const { statementDay, dueDay, isPaid, isForceUnbilled } = item;
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      // 如果明確指定為未出帳 (isForceUnbilled)，強制抓未來的未出帳週期
       if (isForceUnbilled) {
         let stmtDate = new Date(now.getFullYear(), now.getMonth(), statementDay);
         if (today > stmtDate) {
@@ -383,11 +387,9 @@
         return { stmtDate, dueDate };
       }
 
-      // 如果是待繳費或已繳費，強制抓「當前正在進行繳費」的那一期週期
       let stmtDate = new Date(now.getFullYear(), now.getMonth(), statementDay);
       let dueDate = new Date(stmtDate.getFullYear(), stmtDate.getMonth() + (dueDay < statementDay ? 1 : 0), dueDay);
 
-      // 如果今天的日期小於等於當月的結帳日，代表當前要繳的是上個月結帳的那一期
       if (today <= stmtDate) {
         stmtDate = new Date(now.getFullYear(), now.getMonth() - 1, statementDay);
         dueDate = new Date(stmtDate.getFullYear(), stmtDate.getMonth() + (dueDay < statementDay ? 1 : 0), dueDay);
@@ -397,7 +399,7 @@
     }
 
     function getButtonConfig(item) {
-      const { isPaid, isForceUnbilled, statementDay, dueDay } = item;
+      const { isPaid, isForceUnbilled } = item;
 
       if (isForceUnbilled) {
         return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
@@ -549,9 +551,10 @@
 
         const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs"></i></span>` : '';
         
+        // 針對 iOS 點擊優化：使用 ontouchend 1次觸發
         const pinBtnHtml = item.isPinned 
-          ? `<button onclick="togglePin('${item.id}')" class="action-btn action-btn-unpin" title="Unpin">Unpin</button>`
-          : `<button onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="釘選"><i class="fa-solid fa-thumbtack text-slate-600 text-sm"></i></button>`;
+          ? `<button ontouchend="togglePin('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="togglePin('${item.id}')" class="action-btn action-btn-unpin" title="Unpin">Unpin</button>`
+          : `<button ontouchend="togglePin('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="togglePin('${item.id}')" class="action-btn action-btn-pin" title="釘選"><i class="fa-solid fa-thumbtack text-slate-600 text-sm"></i></button>`;
 
         return `
           <div class="swipe-container ${!isLast ? 'border-b border-slate-100/80' : ''}" id="container-${item.id}">
@@ -559,10 +562,10 @@
               ${pinBtnHtml}
             </div>
             <div class="swipe-actions-right" id="actions-right-${item.id}">
-              <button onclick="editCard('${item.id}')" class="action-btn action-btn-edit" title="編輯">
+              <button ontouchend="editCard('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="editCard('${item.id}')" class="action-btn action-btn-edit" title="編輯">
                 <i class="fa-solid fa-pen text-sm"></i>
               </button>
-              <button onclick="deleteCard('${item.id}')" class="action-btn action-btn-delete" title="刪除">
+              <button ontouchend="deleteCard('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="deleteCard('${item.id}')" class="action-btn action-btn-delete" title="刪除">
                 <i class="fa-solid fa-trash-can text-sm"></i>
               </button>
             </div>
@@ -582,7 +585,7 @@
                 </div>
 
                 <div class="w-[110px] flex-shrink-0 flex flex-col items-center justify-center space-y-1 text-center">
-                  <button ${btn.disabled ? '' : `onclick="handleBtnClick('${item.id}')"`} class="w-[90px] mx-auto py-1.5 rounded-xl text-xs transition-all ${btn.class}">
+                  <button ${btn.disabled ? '' : `ontouchend="handleBtnClick('${item.id}'); event.stopPropagation(); event.preventDefault();" onclick="handleBtnClick('${item.id}')"`} class="w-[90px] mx-auto py-1.5 rounded-xl text-xs transition-all ${btn.class}">
                     ${btn.text}
                   </button>
                   ${paidDateText ? `<span class="text-[10px] text-emerald-600 font-medium w-full block whitespace-nowrap">${paidDateText}</span>` : ''}
