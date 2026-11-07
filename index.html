@@ -259,7 +259,7 @@
     <div id="card-list" class="flex-1"></div>
 
     <!-- 版本資訊 (固定置底) -->
-    <div class="text-center text-xs text-slate-400 pt-4 pb-2 mt-auto">版本資訊 26110711<br>Copyright © 2026 W. W. HSU All Rights Reserved.</div>
+    <div class="text-center text-xs text-slate-400 pt-4 pb-2 mt-auto">版本資訊 26110712<br>Copyright © 2026 W. W. HSU All Rights Reserved.</div>
 
   </div>
 
@@ -586,7 +586,7 @@
         const dueText = `${dueMonth}/${dueDayFormatted}`;
 
         const isPaidStatus = btn.type === 'paid';
-        const paidDateText = (isPaidStatus && item.paidDate) ? ` ${item.paidDate} 完成繳費` : '';
+        const paidDateText = (isPaidStatus && item.paidDate) ? ` ${item.paidDate} 繳費完成` : '';
         const isLast = index === data.length - 1;
 
         const pinIconHtml = item.isPinned ? `<span class="inline-flex items-center justify-center w-4 h-4 mr-1 text-slate-400 flex-shrink-0"><i class="fa-solid fa-thumbtack text-xs"></i></span>` : '';
