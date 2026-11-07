@@ -259,7 +259,7 @@
     <div id="card-list" class="flex-1"></div>
 
     <!-- 版本資訊 (固定置底) -->
-    <div class="text-center text-xs text-slate-400 pt-4 pb-2 mt-auto">版本資訊 26110709<br>Copyright © 2026 W. W. HSU All Rights Reserved.</div>
+    <div class="text-center text-xs text-slate-400 pt-4 pb-2 mt-auto">版本資訊 26110710<br>Copyright © 2026 W. W. HSU All Rights Reserved.</div>
 
   </div>
 
@@ -317,7 +317,9 @@
   <script>
     let currentFilter = 'all';
 
-    let itemsData = JSON.parse(localStorage.getItem('cards_account_v24')) || [];
+    let itemsData = (JSON.parse(localStorage.getItem('cards_account_v24')) || []).map(migrateItem);
+    localStorage.setItem('cards_account_v24', JSON.stringify(itemsData));
+    let modalInitialStatus = 'unbilled';
 
     let activeSwipedElem = null;
     let isDragging = false;
@@ -371,64 +373,103 @@
       render();
     }
 
-    function getCycleDates(item) {
-      const { statementDay, dueDay, isPaid, isForceUnbilled } = item;
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      let stmtDate = new Date(now.getFullYear(), now.getMonth(), statementDay);
-      let dueDate = new Date(stmtDate.getFullYear(), stmtDate.getMonth() + (dueDay < statementDay ? 1 : 0), dueDay);
-
-      if (isForceUnbilled || (isPaid && today > dueDate)) {
-        if (today > stmtDate || (isPaid && today > dueDate)) {
-          stmtDate = new Date(now.getFullYear(), now.getMonth() + 1, statementDay);
-        }
-        dueDate = new Date(stmtDate.getFullYear(), stmtDate.getMonth() + (dueDay < statementDay ? 1 : 0), dueDay);
-        return { stmtDate, dueDate };
-      }
-
-      if (today <= stmtDate) {
-        stmtDate = new Date(now.getFullYear(), now.getMonth() - 1, statementDay);
-        dueDate = new Date(stmtDate.getFullYear(), stmtDate.getMonth() + (dueDay < statementDay ? 1 : 0), dueDay);
-      }
-
+    // 以 y 年 m 月（m 可溢位）的結帳日為起點，算出該期的結帳日與截止日
+    function makeCycle(item, y, m) {
+      const { statementDay, dueDay } = item;
+      const stmtDate = new Date(y, m, statementDay);
+      const dueDate = new Date(y, m + (dueDay < statementDay ? 1 : 0), dueDay);
       return { stmtDate, dueDate };
     }
 
-    function getButtonConfig(item) {
-      const { isPaid, isForceUnbilled } = item;
-
-      if (isForceUnbilled) {
-        return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
+    // 「已出帳的最新一期」：結帳日早於 ref 當天的最近一期
+    function getBilledCycle(item, ref = new Date()) {
+      const today = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+      const y = ref.getFullYear();
+      const m = ref.getMonth();
+      for (let k = 1; k >= -3; k--) {
+        const c = makeCycle(item, y, m + k);
+        if (c.stmtDate < today) return { ...c, y, m: m + k };
       }
+      const c = makeCycle(item, y, m - 4);
+      return { ...c, y, m: m - 4 };
+    }
 
+    // 判斷目前狀態，並回傳畫面上要顯示的那一期
+    // item.settledDue：已處理完（已繳費，或使用者點掉逾期／指定未出帳）的那一期截止日(毫秒)。
+    // 只對那一期有效，換到下一期（新的結帳日過後）就自動失效。
+    function getCycleState(item) {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const { stmtDate, dueDate } = getCycleDates(item);
+      const billed = getBilledCycle(item, now);
+      const settled = item.settledDue === billed.dueDate.getTime();
 
-      if (isPaid) {
-        if (today > dueDate) {
-          return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
+      if (settled) {
+        if (item.isPaid && today <= billed.dueDate) {
+          return { type: 'paid', cycle: billed };
         }
-        return { type: 'paid', text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
+        // 已處理完、等下一期出帳：顯示下一期的日期
+        return { type: 'unbilled', cycle: makeCycle(item, billed.y, billed.m + 1) };
       }
 
-      if (today > dueDate) {
-        return { type: 'overdue', text: '已逾期', class: 'bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 cursor-pointer font-semibold', disabled: false };
+      if (today > billed.dueDate) return { type: 'overdue', cycle: billed };
+
+      const diffDays = Math.ceil((billed.dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return { type: diffDays <= 2 ? 'expiring' : 'unpaid', cycle: billed };
+    }
+
+    function getCycleDates(item) {
+      return getCycleState(item).cycle;
+    }
+
+    function getButtonConfig(item) {
+      const { type } = getCycleState(item);
+      switch (type) {
+        case 'paid':
+          return { type, text: '已繳費', class: 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 cursor-pointer font-semibold', disabled: false };
+        case 'overdue':
+          return { type, text: '已逾期', class: 'bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 cursor-pointer font-semibold', disabled: false };
+        case 'expiring':
+          return { type, text: '即將到期', class: 'bg-orange-500/15 text-orange-600 hover:bg-orange-500/25 cursor-pointer font-semibold', disabled: false };
+        case 'unpaid':
+          return { type, text: '待繳費', class: 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 cursor-pointer font-semibold', disabled: false };
+        default:
+          return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
       }
+    }
 
-      if (today <= stmtDate) {
-        return { type: 'unbilled', text: '未出帳', class: 'bg-slate-100 text-slate-400 opacity-80 cursor-not-allowed', disabled: true };
+    // 把目前已出帳的那一期標記為「已處理」（paid 為 true 表示已繳費）
+    function settleCurrentCycle(item, paid) {
+      item.settledDue = getBilledCycle(item).dueDate.getTime();
+      item.isPaid = paid;
+      if (paid) {
+        const nowObj = new Date();
+        item.paidDate = `${String(nowObj.getMonth() + 1).padStart(2, '0')}/${String(nowObj.getDate()).padStart(2, '0')}`;
+      } else {
+        delete item.paidDate;
       }
+    }
 
-      const diffTime = dueDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays <= 2) {
-        return { type: 'expiring', text: '即將到期', class: 'bg-orange-500/15 text-orange-600 hover:bg-orange-500/25 cursor-pointer font-semibold', disabled: false };
+    // 舊版資料（沒有 settledDue）轉成新格式
+    function migrateItem(item) {
+      if ('settledDue' in item) return item;
+      if (item.isForceUnbilled) {
+        item.settledDue = getBilledCycle(item).dueDate.getTime();
+        item.isPaid = false;
+        delete item.paidDate;
+      } else if (item.isPaid) {
+        // 依「已於 MM/dd 完成」推回當時繳的是哪一期；過期的舊資料會自動變成未出帳
+        let ref = new Date();
+        const m = /^(\d{2})\/(\d{2})$/.exec(item.paidDate || '');
+        if (m) {
+          ref = new Date(ref.getFullYear(), parseInt(m[1]) - 1, parseInt(m[2]));
+          if (ref > new Date()) ref = new Date(ref.getFullYear() - 1, ref.getMonth(), ref.getDate());
+        }
+        item.settledDue = getBilledCycle(item, ref).dueDate.getTime();
+      } else {
+        item.settledDue = null;
       }
-
-      return { type: 'unpaid', text: '待繳費', class: 'bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 cursor-pointer font-semibold', disabled: false };
+      delete item.isForceUnbilled;
+      return item;
     }
 
     function setFilter(filter) {
@@ -633,19 +674,13 @@
       const btnConfig = getButtonConfig(item);
 
       if (btnConfig.type === 'overdue') {
-        item.isForceUnbilled = true;
-        item.isPaid = false;
-        delete item.paidDate;
+        // 點掉逾期：這一期視為處理完，變成未出帳，下一期結帳後才會再出現
+        settleCurrentCycle(item, false);
       } else if (btnConfig.type === 'unpaid' || btnConfig.type === 'expiring') {
-        item.isPaid = true;
-        item.isForceUnbilled = false;
-        const nowObj = new Date();
-        const mm = String(nowObj.getMonth() + 1).padStart(2, '0');
-        const dd = String(nowObj.getDate()).padStart(2, '0');
-        item.paidDate = `${mm}/${dd}`;
+        settleCurrentCycle(item, true);
       } else if (btnConfig.type === 'paid') {
         item.isPaid = false;
-        item.isForceUnbilled = false;
+        item.settledDue = null;
         delete item.paidDate;
       }
 
@@ -813,12 +848,8 @@
         document.getElementById('statement-day').value = item.statementDay;
         document.getElementById('due-day').value = item.dueDay;
 
-        const btnCfg = getButtonConfig(item);
-        if (item.isForceUnbilled || btnCfg.type === 'unbilled') {
-          statusSelect.value = 'unbilled';
-        } else {
-          statusSelect.value = 'unpaid';
-        }
+        statusSelect.value = getButtonConfig(item).type === 'unbilled' ? 'unbilled' : 'unpaid';
+        modalInitialStatus = statusSelect.value;
 
         const recordDate = item.updatedAt || item.createdAt || Number(item.id);
         updatedDateSpan.innerText = formatDate(recordDate);
@@ -847,19 +878,31 @@
       const statusValue = document.getElementById('card-status').value;
       const nowTimestamp = Date.now();
 
-      let isForceUnbilled = (statusValue === 'unbilled');
-
       if (id) {
         const item = itemsData.find(c => c.id === id);
         if (item) {
+          const prevType = getButtonConfig(item).type;
+          const daysChanged = item.statementDay !== statementDay || item.dueDay !== dueDay;
+
           item.bankName = bankName;
           item.statementDay = statementDay;
           item.dueDay = dueDay;
-          item.isForceUnbilled = isForceUnbilled;
           item.updatedAt = nowTimestamp;
-          if (isForceUnbilled) {
-            item.isPaid = false;
-            delete item.paidDate;
+
+          // 改了結帳日／截止日：原本未出帳或已繳費的，沿用到新的週期，避免突然變成逾期
+          if (daysChanged && (prevType === 'unbilled' || prevType === 'paid')) {
+            item.settledDue = getBilledCycle(item).dueDate.getTime();
+          }
+
+          // 只有使用者實際更動「帳單狀態」時才套用
+          if (statusValue !== modalInitialStatus) {
+            if (statusValue === 'unbilled') {
+              settleCurrentCycle(item, false);
+            } else {
+              item.isPaid = false;
+              item.settledDue = null;
+              delete item.paidDate;
+            }
           }
         }
       } else {
@@ -868,11 +911,12 @@
           bankName,
           statementDay,
           dueDay,
-          isForceUnbilled,
           isPaid: false,
+          settledDue: null,
           isPinned: false,
           createdAt: nowTimestamp
         };
+        if (statusValue === 'unbilled') settleCurrentCycle(newItem, false);
         itemsData.push(newItem);
       }
 
